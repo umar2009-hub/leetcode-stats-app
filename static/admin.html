@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - LeetCode Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h2, h3 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .back-link {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .back-link a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    textarea {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
+      height: 120px;
+      resize: vertical;
+      font-family: monospace;
+    }
+    .instructions {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .delete-btn {
+      background: #dc3545;
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+    .delete-btn:hover {
+      background: #c82333;
+    }
+    .results, .message {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .results ul, .message ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #007bff;
+    }
+    .users-section {
+      margin-top: 30px;
+    }
+    .users-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .refresh-btn {
+      background: #28a745;
+    }
+    .refresh-btn:hover {
+      background: #218838;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: bold;
+    }
+    tr:hover {
+      background: #f5f5f5;
+    }
+    .no-users {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+    }
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        padding: 15px;
+      }
+      .users-controls {
+        flex-direction: column;
+        gap: 10px;
+      }
+      table {
+        font-size: 14px;
+      }
+      th, td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>👨‍💼 Admin - Manage LeetCode Users</h2>
+    <div class="back-link">
+      <a href="/">← Back to Stats Viewer</a>
+    </div>
+
+    <!-- Upload Form -->
+    <form id="uploadForm">
+      <div>
+        <label for="usernames">✏️ Enter LeetCode Usernames (one per line):</label>
+        <div class="instructions">Example:<br><code>leetcode<br>neetcode<br>alice</code><br>(Limited to 50 users per upload to avoid rate limits)</div>
+        <textarea id="usernames" placeholder="Enter LeetCode usernames, one per line..."></textarea>
+      </div>
+
+      <button type="submit">🚀 Upload & Fetch Stats</button>
+    </form>
+
+    <div id="uploadLoading" class="loading" style="display: none;">⏳ Uploading and fetching stats...</div>
+    <div id="uploadResults" class="results"></div>
+
+    <!-- Current Users Section -->
+    <div class="users-section">
+      <div class="users-controls">
+        <h3>📋 Current Users (<span id="userCount">0</span> total)</h3>
+        <button class="refresh-btn" onclick="loadUsers()">🔄 Refresh List</button>
+      </div>
+      <div id="usersLoading" class="loading" style="display: none;">⏳ Loading users...</div>
+      <div id="usersTable"></div>
+      <div id="deleteMessage" class="message"></div>
+    </div>
+  </div>
+
+  <script>
+    // Global function to load users
+    async function loadUsers() {
+      const usersLoading = document.getElementById("usersLoading");
+      const usersTable = document.getElementById("usersTable");
+      const userCount = document.getElementById("userCount");
+      usersLoading.style.display = "block";
+      usersTable.innerHTML = "";
+
+      try {
+        // Fetch all users (no pagination for admin - use large per_page)
+        const res = await fetch("/api/users?per_page=1000");
+        const data = await res.json();
+
+        userCount.textContent = data.total;
+        if (data.users.length === 0) {
+          usersTable.innerHTML = "<p class='no-users'>No users yet. Upload some to get started!</p>";
+          usersLoading.style.display = "none";
+          return;
+        }
+
+        usersTable.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Total Solved</th>
+                <th>Ranking</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.users.map(user => `
+                <tr>
+                  <td><strong>${user.username}</strong></td>
+                  <td>${user.total}</td>
+                  <td>${user.ranking || "N/A"}</td>
+                  <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
+                  <td>
+                    <button class="delete-btn" onclick="deleteUser ('${user.username}')">🗑️ Delete</button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        usersTable.innerHTML = `<p class="error">⚠️ Error loading users: ${err.message}</p>`;
+      } finally {
+        usersLoading.style.display = "none";
+      }
+    }
+
+    // Function to delete a user
+    async function deleteUser (username) {
+      if (!confirm(`Are you sure you want to delete the profile for '${username}'? This action cannot be undone.`)) {
+        return;
+      }
+
+      const message = document.getElementById("deleteMessage");
+      message.style.display = "none";
+
+      try {
+        const res = await fetch(`/admin/delete/${username}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          message.className = "message success";
+          message.innerHTML = `<p>✅ ${data.message}</p>`;
+          message.style.display = "block";
+          // Refresh the list after delete
+          loadUsers();
+        } else {
+          message.className = "message error";
+          message.innerHTML = `<p>❌ ${data.error}</p>`;
+          message.style.display = "block";
+        }
+      } catch (err) {
+        message.className = "message error";
+        message.innerHTML = `<p>⚠️ Delete failed: ${err.message}</p>`;
+        message.style.display = "block";
+      }
+    }
+
+    // Upload form handler
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const usernames = document.getElementById("usernames").value.trim();
+      const uploadLoading = document.getElementById("uploadLoading");
+      const uploadResults = document.getElementById("uploadResults");
+      const submitBtn = e.target.querySelector("button");
+
+      if (!usernames) {
+        alert("Please enter at least one username.");
+        return;
+      }
+
+      // Hide results, show loading, disable button
+      uploadResults.style.display = "none";
+      uploadLoading.style.display = "block";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Uploading...";
+
+      const formData = new FormData();
+      formData.append("usernames", usernames);
+
+      try {
+        const res = await fetch("/admin/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+
+        // Show results
+        uploadLoading.style.display = "none";
+        uploadResults.style.display = "block";
+        if (data.success && data.success.length > 0) {
+          uploadResults.className = "results success";
+          uploadResults.innerHTML = `
+            <h4>✅ Success!</h4>
+            <p>Added/Updated ${data.success.length} users:</p>
+            <ul>${data.success.map(u => `<li>${u}</li>`).join("")}</ul>
+          `;
+        }
+        if (data.errors && data.errors.length > 0) {
+          uploadResults.className = "results error";
+          if (data.success && data.success.length > 0) {
+            uploadResults.innerHTML += `
+              <h4>❌ Errors (${data.errors.length}):</h4>
+              <ul>${data.errors.map(e => `<li>${e}</li>`).join("")}</ul>
+            `;
+          } else {
+            uploadResults.innerHTML = `
+              <h4>❌ Errors:</h4>
+              <ul>${data.errors.map(e => `<li>${e}</li>`).join("")}</ul>
+            `;
+          }
+        }
+        if (!data.success && !data.errors) {
+          uploadResults.className = "results error";
+          uploadResults.innerHTML = "<h4>⚠️ No data processed. Check your input.</h4>";
+        }
+
+        // Clear textarea and refresh users list after successful upload
+        if (data.success && data.success.length > 0) {
+          document.getElementById("usernames").value = "";
+          loadUsers();
+        }
+      } catch (err) {
+        uploadLoading.style.display = "none";
+        uploadResults.style.display = "block";
+        uploadResults.className = "results error";
+        uploadResults.innerHTML = `<h4>⚠️ Upload failed: ${err.message}</h4>`;
+      }
+
+      // Re-enable button
+      submitBtn.disabled = false;
+      submitBtn.textContent = "🚀 Upload & Fetch Stats";
+    });
+
+    // Load users on page load
+    loadUsers();
+  </script>
+</body>
+</html>
