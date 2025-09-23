@@ -5,186 +5,701 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin - LeetCode Upload</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 20px;
+    /* CSS Reset and Base Styles */
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
+
+    /* Design System Variables */
+    :root {
+      /* Colors */
+      --background: hsl(240, 10%, 3.9%);
+      --foreground: hsl(0, 0%, 98%);
+      --surface: hsl(240, 8%, 6%);
+      --surface-elevated: hsl(240, 7%, 8%);
+      --card: hsl(240, 8%, 6%);
+      --card-foreground: hsl(0, 0%, 98%);
+      --card-hover: hsl(240, 7%, 8%);
+      --primary: hsl(258, 90%, 66%);
+      --primary-foreground: hsl(0, 0%, 98%);
+      --primary-muted: hsl(258, 90%, 76%);
+      --secondary: hsl(240, 4.8%, 15.9%);
+      --secondary-hover: hsl(240, 5%, 18%);
+      --accent: hsl(262, 83%, 58%);
+      --muted: hsl(240, 3.7%, 15.9%);
+      --muted-foreground: hsl(240, 5%, 64.9%);
+      --border: hsl(240, 3.7%, 15.9%);
+      --input: hsl(240, 3.7%, 15.9%);
+      --success: hsl(142, 76%, 36%);
+      --warning: hsl(48, 96%, 53%);
+      --danger: hsl(0, 84%, 60%);
+      
+      /* Gradients */
+      --gradient-primary: linear-gradient(135deg, hsl(258, 90%, 66%), hsl(262, 83%, 58%));
+      --gradient-hero: linear-gradient(135deg, hsl(240, 10%, 3.9%) 0%, hsl(258, 90%, 66%, 0.1) 50%, hsl(262, 83%, 58%, 0.1) 100%);
+      --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 76%, 46%));
+      --gradient-danger: linear-gradient(135deg, hsl(0, 84%, 60%), hsl(0, 84%, 70%));
+      
+      /* Shadows */
+      --shadow-lg: 0 10px 15px -3px hsl(240, 10%, 3.9%, 0.1), 0 4px 6px -4px hsl(240, 10%, 3.9%, 0.1);
+      --shadow-xl: 0 20px 25px -5px hsl(240, 10%, 3.9%, 0.1), 0 8px 10px -6px hsl(240, 10%, 3.9%, 0.1);
+      --shadow-glow: 0 0 20px hsl(258, 90%, 66%, 0.3);
+      --shadow-success: 0 0 20px hsl(142, 76%, 36%, 0.3);
+      --shadow-danger: 0 0 20px hsl(0, 84%, 60%, 0.3);
+      
+      /* Animation */
+      --transition-fast: 0.15s ease-out;
+      --transition-normal: 0.3s ease-out;
+      --transition-slow: 0.5s ease-out;
+      --bounce-in: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    /* Base Styles */
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    /* Container */
     .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      animation: slideUp 0.6s ease-out;
     }
-    h2, h3 {
+
+    /* Header */
+    .header {
+      background: var(--gradient-hero);
+      padding: 2rem;
       text-align: center;
-      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
     }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 30% 20%, hsl(258, 90%, 66%, 0.1), transparent 50%),
+        radial-gradient(circle at 70% 80%, hsl(262, 83%, 58%, 0.1), transparent 50%);
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header h2 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: hsl(258, 90%, 66%, 0.1);
+      border: 1px solid hsl(258, 90%, 66%, 0.2);
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+
     .back-link {
-      text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 1rem;
     }
+
     .back-link a {
-      color: #007bff;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--muted-foreground);
       text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all var(--transition-normal);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid transparent;
     }
+
+    .back-link a:hover {
+      color: var(--primary);
+      border-color: hsl(258, 90%, 66%, 0.2);
+      background: hsl(258, 90%, 66%, 0.05);
+      transform: translateX(-2px);
+    }
+
+    .back-link svg {
+      width: 1rem;
+      height: 1rem;
+      transition: transform var(--transition-normal);
+    }
+
+    .back-link a:hover svg {
+      transform: translateX(-2px);
+    }
+
+    /* Content */
+    .content {
+      padding: 2rem;
+    }
+
+    /* Form Styles */
+    .form-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition-normal);
+    }
+
+    .form-section:hover {
+      border-color: hsl(258, 90%, 66%, 0.3);
+      box-shadow: var(--shadow-xl), var(--shadow-glow);
+    }
+
+    .form-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--card-foreground);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
     form {
       display: flex;
       flex-direction: column;
-      gap: 15px;
-      margin-bottom: 30px;
+      gap: 1.5rem;
     }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--card-foreground);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .instructions {
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+      background: var(--muted);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border-left: 3px solid var(--primary);
+      margin-top: 0.25rem;
+    }
+
+    .instructions code {
+      background: hsl(258, 90%, 66%, 0.1);
+      color: var(--primary);
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-family: 'Courier New', monospace;
+    }
+
     textarea {
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      width: 100%;
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      color: var(--foreground);
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      line-height: 1.5;
       height: 120px;
       resize: vertical;
-      font-family: monospace;
+      transition: all var(--transition-normal);
     }
-    .instructions {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 10px;
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px hsl(258, 90%, 66%, 0.1);
     }
-    button {
-      padding: 10px;
-      border: none;
-      border-radius: 6px;
-      background: #007bff;
-      color: white;
+
+    textarea::placeholder {
+      color: var(--muted-foreground);
+    }
+
+    /* Button Styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: 1px solid;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-decoration: none;
       cursor: pointer;
-      font-size: 16px;
+      transition: all var(--transition-normal);
+      user-select: none;
     }
-    button:hover {
-      background: #0056b3;
-    }
-    button:disabled {
-      background: #ccc;
+
+    .btn:disabled {
       cursor: not-allowed;
+      opacity: 0.5;
     }
-    .delete-btn {
-      background: #dc3545;
-      padding: 6px 12px;
-      font-size: 14px;
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border-color: var(--primary);
     }
-    .delete-btn:hover {
-      background: #c82333;
+
+    .btn-primary:hover:not(:disabled) {
+      background: hsl(258, 90%, 60%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px hsl(258, 90%, 66%, 0.25);
     }
-    .results, .message {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 6px;
-      display: none;
+
+    .btn-success {
+      background: var(--success);
+      color: hsl(0, 0%, 98%);
+      border-color: var(--success);
     }
-    .success {
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+
+    .btn-success:hover:not(:disabled) {
+      background: hsl(142, 76%, 30%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px hsl(142, 76%, 36%, 0.25);
     }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+
+    .btn-danger {
+      background: var(--danger);
+      color: hsl(0, 0%, 98%);
+      border-color: var(--danger);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
     }
-    .results ul, .message ul {
-      margin: 10px 0;
-      padding-left: 20px;
+
+    .btn-danger:hover:not(:disabled) {
+      background: hsl(0, 84%, 50%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px hsl(0, 84%, 60%, 0.25);
     }
+
+    .btn svg {
+      width: 1rem;
+      height: 1rem;
+      transition: transform var(--transition-normal);
+    }
+
+    .btn-primary:hover:not(:disabled) svg {
+      transform: scale(1.1);
+    }
+
+    /* Loading States */
     .loading {
-      text-align: center;
-      padding: 20px;
-      color: #007bff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      color: var(--muted-foreground);
+      margin: 1rem 0;
     }
+
+    .spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid hsl(258, 90%, 66%, 0.3);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    /* Message States */
+    .message {
+      padding: 1rem;
+      border-radius: 0.75rem;
+      margin: 1rem 0;
+      border: 1px solid;
+      display: none;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    .message.success {
+      background: hsl(142, 76%, 36%, 0.1);
+      color: hsl(142, 76%, 50%);
+      border-color: hsl(142, 76%, 36%, 0.3);
+    }
+
+    .message.error {
+      background: hsl(0, 84%, 60%, 0.1);
+      color: hsl(0, 84%, 65%);
+      border-color: hsl(0, 84%, 60%, 0.3);
+    }
+
+    .message h4 {
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .message ul {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .message li {
+      margin-bottom: 0.25rem;
+    }
+
+    /* Users Section */
     .users-section {
-      margin-top: 30px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition-normal);
     }
-    .users-controls {
+
+    .users-section:hover {
+      border-color: hsl(258, 90%, 66%, 0.3);
+      box-shadow: var(--shadow-xl), var(--shadow-glow);
+    }
+
+    .users-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
     }
-    .refresh-btn {
-      background: #28a745;
+
+    .users-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--card-foreground);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    .refresh-btn:hover {
-      background: #218838;
+
+    .user-count {
+      color: var(--primary);
+      font-weight: 800;
     }
+
+    /* Table Styles */
+    .table-container {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
     }
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
+
     th {
-      background: #f8f9fa;
-      font-weight: bold;
+      background: var(--muted);
+      color: var(--card-foreground);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--border);
     }
-    tr:hover {
-      background: #f5f5f5;
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--card-foreground);
+      font-size: 0.875rem;
     }
+
+    tbody tr {
+      transition: all var(--transition-fast);
+    }
+
+    tbody tr:hover {
+      background: var(--card-hover);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .username {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
     .no-users {
       text-align: center;
-      color: #666;
-      padding: 20px;
+      padding: 3rem;
+      color: var(--muted-foreground);
+      background: var(--surface);
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
     }
+
+    .no-users-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Animations */
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* Responsive Design */
     @media (max-width: 768px) {
-      .container {
-        margin: 10px;
-        padding: 15px;
+      body {
+        padding: 1rem;
       }
-      .users-controls {
+
+      .header {
+        padding: 1.5rem;
+      }
+
+      .header h2 {
+        font-size: 1.75rem;
+      }
+
+      .content {
+        padding: 1.5rem;
+      }
+
+      .form-section,
+      .users-section {
+        padding: 1rem;
+      }
+
+      .users-header {
         flex-direction: column;
-        gap: 10px;
+        align-items: stretch;
+        gap: 1rem;
       }
+
+      .table-container {
+        overflow-x: auto;
+      }
+
       table {
-        font-size: 14px;
+        min-width: 600px;
       }
+
       th, td {
-        padding: 8px;
+        padding: 0.75rem 0.5rem;
+        font-size: 0.75rem;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .users-header .btn {
+        width: auto;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h2 {
+        font-size: 1.5rem;
+      }
+
+      .form-section,
+      .users-section {
+        padding: 0.75rem;
+      }
+
+      .content {
+        padding: 1rem;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>👨‍💼 Admin - Manage LeetCode Users</h2>
-    <div class="back-link">
-      <a href="/">← Back to Stats Viewer</a>
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <div class="header-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
+          </svg>
+          Admin Panel
+        </div>
+        <h2>👨‍💼 Manage LeetCode Users</h2>
+        <div class="back-link">
+          <a href="/">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15,18 9,12 15,6"></polyline>
+            </svg>
+            Back to Stats Viewer
+          </a>
+        </div>
+      </div>
     </div>
 
-    <!-- Upload Form -->
-    <form id="uploadForm">
-      <div>
-        <label for="usernames">✏️ Enter LeetCode Usernames (one per line):</label>
-        <div class="instructions">Example:<br><code>leetcode<br>neetcode<br>alice</code><br>(Limited to 50 users per upload to avoid rate limits)</div>
-        <textarea id="usernames" placeholder="Enter LeetCode usernames, one per line..."></textarea>
+    <!-- Content -->
+    <div class="content">
+      <!-- Upload Form Section -->
+      <div class="form-section">
+        <div class="form-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7,10 12,15 17,10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Upload New Users
+        </div>
+        
+        <form id="uploadForm">
+          <div class="form-group">
+            <label for="usernames">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+              </svg>
+              Enter LeetCode Usernames (one per line):
+            </label>
+            <div class="instructions">
+          
+              <em>Limited to 50 users per upload to avoid rate limits</em>
+            </div>
+            <textarea id="usernames" placeholder="Enter LeetCode usernames, one per line..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="8,12 12,16 16,12"></polyline>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+            </svg>
+            Upload & Fetch Stats
+          </button>
+        </form>
+
+        <div id="uploadLoading" class="loading" style="display: none;">
+          <div class="spinner"></div>
+          <span>Uploading and fetching stats...</span>
+        </div>
+        
+        <div id="uploadResults" class="message"></div>
       </div>
 
-      <button type="submit">🚀 Upload & Fetch Stats</button>
-    </form>
-
-    <div id="uploadLoading" class="loading" style="display: none;">⏳ Uploading and fetching stats...</div>
-    <div id="uploadResults" class="results"></div>
-
-    <!-- Current Users Section -->
-    <div class="users-section">
-      <div class="users-controls">
-        <h3>📋 Current Users (<span id="userCount">0</span> total)</h3>
-        <button class="refresh-btn" onclick="loadUsers()">🔄 Refresh List</button>
+      <!-- Current Users Section -->
+      <div class="users-section">
+        <div class="users-header">
+          <div class="users-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <path d="M20 8v6M23 11h-6"></path>
+            </svg>
+            Current Users (<span id="userCount" class="user-count">0</span> total)
+          </div>
+          <button class="btn btn-success" onclick="loadUsers()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23,4 23,10 17,10"></polyline>
+              <path d="M20.49,15a9,9,0,1,1-2.12-9.36L23,10"></path>
+            </svg>
+            Refresh List
+          </button>
+        </div>
+        
+        <div id="usersLoading" class="loading" style="display: none;">
+          <div class="spinner"></div>
+          <span>Loading users...</span>
+        </div>
+        
+        <div id="usersTable"></div>
+        
+        <div id="deleteMessage" class="message"></div>
       </div>
-      <div id="usersLoading" class="loading" style="display: none;">⏳ Loading users...</div>
-      <div id="usersTable"></div>
-      <div id="deleteMessage" class="message"></div>
     </div>
   </div>
 
@@ -194,7 +709,7 @@
       const usersLoading = document.getElementById("usersLoading");
       const usersTable = document.getElementById("usersTable");
       const userCount = document.getElementById("userCount");
-      usersLoading.style.display = "block";
+      usersLoading.style.display = "flex";
       usersTable.innerHTML = "";
 
       try {
@@ -204,46 +719,65 @@
 
         userCount.textContent = data.total;
         if (data.users.length === 0) {
-          usersTable.innerHTML = "<p class='no-users'>No users yet. Upload some to get started!</p>";
+          usersTable.innerHTML = `
+            <div class="no-users">
+              <div class="no-users-icon">📋</div>
+              <h3>No users yet</h3>
+              <p>Upload some LeetCode usernames to get started!</p>
+            </div>
+          `;
           usersLoading.style.display = "none";
           return;
         }
 
         usersTable.innerHTML = `
-          <table>
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Total Solved</th>
-                <th>Ranking</th>
-                <th>Last Updated</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.users.map(user => `
+          <div class="table-container">
+            <table>
+              <thead>
                 <tr>
-                  <td><strong>${user.username}</strong></td>
-                  <td>${user.total}</td>
-                  <td>${user.ranking || "N/A"}</td>
-                  <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
-                  <td>
-                    <button class="delete-btn" onclick="deleteUser ('${user.username}')">🗑️ Delete</button>
-                  </td>
+                  <th>Username</th>
+                  <th>Total Solved</th>
+                  <th>Ranking</th>
+                  <th>Last Updated</th>
+                  <th>Actions</th>
                 </tr>
-              `).join("")}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${data.users.map(user => `
+                  <tr>
+                    <td><span class="username">${user.username}</span></td>
+                    <td>${user.total}</td>
+                    <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
+                    <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
+                    <td>
+                      <button class="btn btn-danger" onclick="deleteUser('${user.username}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3,6 5,6 21,6"></polyline>
+                          <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+                        </svg>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
         `;
       } catch (err) {
-        usersTable.innerHTML = `<p class="error">⚠️ Error loading users: ${err.message}</p>`;
+        usersTable.innerHTML = `
+          <div class="message error" style="display: block;">
+            <h4>⚠️ Error loading users</h4>
+            <p>${err.message}</p>
+          </div>
+        `;
       } finally {
         usersLoading.style.display = "none";
       }
     }
 
     // Function to delete a user
-    async function deleteUser (username) {
+    async function deleteUser(username) {
       if (!confirm(`Are you sure you want to delete the profile for '${username}'? This action cannot be undone.`)) {
         return;
       }
@@ -259,18 +793,27 @@
 
         if (data.ok) {
           message.className = "message success";
-          message.innerHTML = `<p>✅ ${data.message}</p>`;
+          message.innerHTML = `
+            <h4>✅ Success!</h4>
+            <p>${data.message}</p>
+          `;
           message.style.display = "block";
           // Refresh the list after delete
           loadUsers();
         } else {
           message.className = "message error";
-          message.innerHTML = `<p>❌ ${data.error}</p>`;
+          message.innerHTML = `
+            <h4>❌ Error</h4>
+            <p>${data.error}</p>
+          `;
           message.style.display = "block";
         }
       } catch (err) {
         message.className = "message error";
-        message.innerHTML = `<p>⚠️ Delete failed: ${err.message}</p>`;
+        message.innerHTML = `
+          <h4>⚠️ Delete failed</h4>
+          <p>${err.message}</p>
+        `;
         message.style.display = "block";
       }
     }
@@ -290,9 +833,12 @@
 
       // Hide results, show loading, disable button
       uploadResults.style.display = "none";
-      uploadLoading.style.display = "block";
+      uploadLoading.style.display = "flex";
       submitBtn.disabled = true;
-      submitBtn.textContent = "Uploading...";
+      submitBtn.innerHTML = `
+        <div class="spinner"></div>
+        Uploading...
+      `;
 
       const formData = new FormData();
       formData.append("usernames", usernames);
@@ -307,31 +853,37 @@
         // Show results
         uploadLoading.style.display = "none";
         uploadResults.style.display = "block";
+        
         if (data.success && data.success.length > 0) {
-          uploadResults.className = "results success";
+          uploadResults.className = "message success";
           uploadResults.innerHTML = `
             <h4>✅ Success!</h4>
             <p>Added/Updated ${data.success.length} users:</p>
             <ul>${data.success.map(u => `<li>${u}</li>`).join("")}</ul>
           `;
         }
+        
         if (data.errors && data.errors.length > 0) {
-          uploadResults.className = "results error";
           if (data.success && data.success.length > 0) {
             uploadResults.innerHTML += `
               <h4>❌ Errors (${data.errors.length}):</h4>
               <ul>${data.errors.map(e => `<li>${e}</li>`).join("")}</ul>
             `;
           } else {
+            uploadResults.className = "message error";
             uploadResults.innerHTML = `
               <h4>❌ Errors:</h4>
               <ul>${data.errors.map(e => `<li>${e}</li>`).join("")}</ul>
             `;
           }
         }
+        
         if (!data.success && !data.errors) {
-          uploadResults.className = "results error";
-          uploadResults.innerHTML = "<h4>⚠️ No data processed. Check your input.</h4>";
+          uploadResults.className = "message error";
+          uploadResults.innerHTML = `
+            <h4>⚠️ No data processed</h4>
+            <p>Check your input and try again.</p>
+          `;
         }
 
         // Clear textarea and refresh users list after successful upload
@@ -342,13 +894,23 @@
       } catch (err) {
         uploadLoading.style.display = "none";
         uploadResults.style.display = "block";
-        uploadResults.className = "results error";
-        uploadResults.innerHTML = `<h4>⚠️ Upload failed: ${err.message}</h4>`;
+        uploadResults.className = "message error";
+        uploadResults.innerHTML = `
+          <h4>⚠️ Upload failed</h4>
+          <p>${err.message}</p>
+        `;
       }
 
       // Re-enable button
       submitBtn.disabled = false;
-      submitBtn.textContent = "🚀 Upload & Fetch Stats";
+      submitBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="8,12 12,16 16,12"></polyline>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+        </svg>
+        Upload & Fetch Stats
+      `;
     });
 
     // Load users on page load
