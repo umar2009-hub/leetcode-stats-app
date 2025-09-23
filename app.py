@@ -122,8 +122,6 @@ def init_db():
     cursor.close()
     conn.close()
 
-# Ensure DB is initialized in production (when using Gunicorn, __main__ won't run)
-@app.before_first_request
 # Ensure DB is initialized on import/startup (works with gunicorn and renders)
 def ensure_db():
     try:
