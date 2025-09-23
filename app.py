@@ -1,10 +1,8 @@
-from flask import Flask, jsonify, send_from_directory, request, render_template_string
+from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import requests
 import time
-import sqlite3
-import csv
-import io
+import psycopg2  # CHANGED: use psycopg2 for PostgreSQL
 import os
 
 app = Flask(__name__, static_folder="static")
@@ -29,7 +27,6 @@ def cache_get(key):
 def cache_set(key, data, ttl=TTL_SECONDS):
     CACHE[key] = (time.time() + ttl, data)
 
-# Your existing GraphQL query
 USER_PROFILE_QUERY = """
 query getUserProfile($username: String!) {
   matchedUser(username: $username) {
@@ -85,18 +82,21 @@ def transform_response(data):
         },
     }
 
-# Database setup
-DB_PATH = "leetcode_users.db"
+# ---------- DATABASE SETUP (PostgreSQL) ---------- #
+
+def get_db_connection():
+    conn = psycopg2.connect(os.environ["DATABASE_URL"], sslmode="require")  # CHANGED
+    return conn
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leetcode_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
-            ranking INTEGER DEFAULT NULL,
-            reputation INTEGER DEFAULT NULL,
+            ranking INTEGER,
+            reputation INTEGER,
             easy INTEGER DEFAULT 0,
             medium INTEGER DEFAULT 0,
             hard INTEGER DEFAULT 0,
@@ -105,25 +105,41 @@ def init_db():
         )
     """)
     conn.commit()
+    cursor.close()
     conn.close()
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
     cursor = conn.cursor()
     solved = stats["solved"]
+
     cursor.execute("""
-        INSERT OR REPLACE INTO leetcode_users 
-        (username, ranking, reputation, easy, medium, hard, total, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (username, stats["ranking"], stats["reputation"], 
-          solved["Easy"], solved["Medium"], solved["Hard"], solved["All"]))
+        INSERT INTO leetcode_users (username, ranking, reputation, easy, medium, hard, total, last_updated)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (username)
+        DO UPDATE SET 
+            ranking = EXCLUDED.ranking,
+            reputation = EXCLUDED.reputation,
+            easy = EXCLUDED.easy,
+            medium = EXCLUDED.medium,
+            hard = EXCLUDED.hard,
+            total = EXCLUDED.total,
+            last_updated = CURRENT_TIMESTAMP
+    """, (
+        username,
+        stats["ranking"],
+        stats["reputation"],
+        solved["Easy"],
+        solved["Medium"],
+        solved["Hard"],
+        solved["All"],
+    ))
+
     conn.commit()
+    cursor.close()
     conn.close()
+
+# ---------- CORE LOGIC ---------- #
 
 def fetch_or_update_user(username):
     key = f"lc:{username.lower()}"
@@ -145,17 +161,17 @@ def fetch_or_update_user(username):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-# Admin upload endpoint
+# ---------- ROUTES ---------- #
+
 @app.route("/admin/upload", methods=["POST"])
 def admin_upload():
-    # Only handle textarea input
     text = request.form.get("usernames", "").strip()
     if not text:
         return jsonify({"ok": False, "error": "No usernames provided"}), 400
     usernames = [u.strip() for u in text.split("\n") if u.strip()]
 
     results = {"success": [], "errors": []}
-    for username in usernames[:50]:  # Limit to 50 to avoid rate limits
+    for username in usernames[:50]:
         if not username:
             continue
         stats = fetch_or_update_user(username)
@@ -166,24 +182,24 @@ def admin_upload():
 
     return jsonify(results)
 
-# New delete endpoint
 @app.route("/admin/delete/<username>", methods=["DELETE"])
 def admin_delete(username):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM leetcode_users WHERE username = ?", (username,))
+    cursor.execute("DELETE FROM leetcode_users WHERE username = %s", (username,))
     deleted = cursor.rowcount > 0
     conn.commit()
+    cursor.close()
     conn.close()
-    if deleted:
-        # Invalidate cache if exists
-        key = f"lc:{username.lower()}"
-        CACHE.pop(key, None)
-        return jsonify({"ok": True, "message": f"User  '{username}' deleted successfully."})
-    else:
-        return jsonify({"ok": False, "error": f"User  '{username}' not found."}), 404
 
-# Paginated API for users
+    key = f"lc:{username.lower()}"
+    CACHE.pop(key, None)
+
+    if deleted:
+        return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
+    else:
+        return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
+
 @app.route("/api/users")
 def api_users():
     page = int(request.args.get("page", 1))
@@ -193,19 +209,31 @@ def api_users():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get total count
     cursor.execute("SELECT COUNT(*) FROM leetcode_users")
     total = cursor.fetchone()[0]
 
-    # Get paginated data (only users with data)
     cursor.execute("""
-        SELECT * FROM leetcode_users 
-        WHERE ranking IS NOT NULL 
-        ORDER BY total DESC 
-        LIMIT ? OFFSET ?
+        SELECT username, ranking, reputation, easy, medium, hard, total, last_updated
+        FROM leetcode_users
+        WHERE ranking IS NOT NULL
+        ORDER BY total DESC
+        LIMIT %s OFFSET %s
     """, (per_page, offset))
-    users = [dict(row) for row in cursor.fetchall()]
 
+    users = []
+    for row in cursor.fetchall():
+        users.append({
+            "username": row[0],
+            "ranking": row[1],
+            "reputation": row[2],
+            "easy": row[3],
+            "medium": row[4],
+            "hard": row[5],
+            "total": row[6],
+            "last_updated": row[7].isoformat() if row[7] else None,
+        })
+
+    cursor.close()
     conn.close()
 
     return jsonify({
@@ -213,10 +241,9 @@ def api_users():
         "page": page,
         "per_page": per_page,
         "total": total,
-        "total_pages": (total + per_page - 1) // per_page
+        "total_pages": (total + per_page - 1) // per_page,
     })
 
-# Serve frontend
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
@@ -226,8 +253,6 @@ def admin():
     return send_from_directory("static", "admin.html")
 
 if __name__ == "__main__":
-    init_db()  # Initialize DB on start
+    init_db()
     print("🚀 Server running at http://127.0.0.1:5000")
-    print("📁 Database: leetcode_users.db")
-    print("👨‍💼 Admin: http://127.0.0.1:5000/admin")
     app.run(debug=True)
