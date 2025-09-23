@@ -85,8 +85,22 @@ def transform_response(data):
 # ---------- DATABASE SETUP (PostgreSQL) ---------- #
 
 def get_db_connection():
-    conn = psycopg2.connect(os.environ["DATABASE_URL"], sslmode="require")  # CHANGED
-    return conn
+    """Connect to Postgres using DATABASE_URL. Convert deprecated scheme if needed.
+       Try SSL first (for managed providers), then retry without ssl if that fails (helpful for local)."""
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL not set in environment")
+
+    # Replace old scheme (some providers give postgres://)
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+
+    # Try with sslmode=require first (typical for managed DBs), fallback to no ssl
+    try:
+        return psycopg2.connect(url, sslmode="require")
+    except Exception:
+        # Fallback for local dev where SSL isn't enabled
+        return psycopg2.connect(url)
 
 def init_db():
     conn = get_db_connection()
@@ -108,6 +122,16 @@ def init_db():
     cursor.close()
     conn.close()
 
+# Ensure DB is initialized in production (when using Gunicorn, __main__ won't run)
+@app.before_first_request
+def ensure_db():
+    try:
+        init_db()
+    except Exception as e:
+        # If DB init fails, raise so that the error is visible in logs
+        app.logger.error("Failed to initialize DB: %s", e)
+        raise
+
 def store_user_stats(username, stats):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -127,12 +151,12 @@ def store_user_stats(username, stats):
             last_updated = CURRENT_TIMESTAMP
     """, (
         username,
-        stats["ranking"],
-        stats["reputation"],
-        solved["Easy"],
-        solved["Medium"],
-        solved["Hard"],
-        solved["All"],
+        stats.get("ranking"),
+        stats.get("reputation"),
+        solved.get("Easy", 0),
+        solved.get("Medium", 0),
+        solved.get("Hard", 0),
+        solved.get("All", 0),
     ))
 
     conn.commit()
@@ -202,47 +226,64 @@ def admin_delete(username):
 
 @app.route("/api/users")
 def api_users():
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 12))
-    offset = (page - 1) * per_page
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 12))
+        offset = (page - 1) * per_page
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM leetcode_users")
-    total = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM leetcode_users")
+        total = cursor.fetchone()[0]
 
-    cursor.execute("""
-        SELECT username, ranking, reputation, easy, medium, hard, total, last_updated
-        FROM leetcode_users
-        WHERE ranking IS NOT NULL
-        ORDER BY total DESC
-        LIMIT %s OFFSET %s
-    """, (per_page, offset))
+        cursor.execute("""
+            SELECT username, ranking, reputation, easy, medium, hard, total, last_updated
+            FROM leetcode_users
+            WHERE ranking IS NOT NULL
+            ORDER BY total DESC
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
 
-    users = []
-    for row in cursor.fetchall():
-        users.append({
-            "username": row[0],
-            "ranking": row[1],
-            "reputation": row[2],
-            "easy": row[3],
-            "medium": row[4],
-            "hard": row[5],
-            "total": row[6],
-            "last_updated": row[7].isoformat() if row[7] else None,
+        users = []
+        for row in cursor.fetchall():
+            users.append({
+                "username": row[0],
+                "ranking": row[1],
+                "reputation": row[2],
+                "easy": row[3],
+                "medium": row[4],
+                "hard": row[5],
+                "total": row[6],
+                "last_updated": row[7].isoformat() if row[7] else None,
+            })
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "users": users,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page,
         })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-    cursor.close()
-    conn.close()
-
-    return jsonify({
-        "users": users,
-        "page": page,
-        "per_page": per_page,
-        "total": total,
-        "total_pages": (total + per_page - 1) // per_page,
-    })
+# Simple debug route to check DB connectivity quickly
+@app.route("/debug/db")
+def debug_db():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        ok = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return jsonify({"ok": True, "msg": "Connected to database", "test": ok[0] if ok else None}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/")
 def index():
@@ -252,7 +293,17 @@ def index():
 def admin():
     return send_from_directory("static", "admin.html")
 
+# Global exception handler that returns JSON (prevents HTML error pages)
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({"ok": False, "error": str(e)}), 500
+
 if __name__ == "__main__":
-    init_db()
+    # For local dev: try to init DB (won't be used on Render where Gunicorn is the entrypoint)
+    try:
+        init_db()
+        print("✅ Database initialized")
+    except Exception as e:
+        print("⚠️ init_db() failed:", e)
     print("🚀 Server running at http://127.0.0.1:5000")
     app.run(debug=True)
