@@ -124,13 +124,19 @@ def init_db():
 
 # Ensure DB is initialized in production (when using Gunicorn, __main__ won't run)
 @app.before_first_request
+# Ensure DB is initialized on import/startup (works with gunicorn and renders)
 def ensure_db():
     try:
         init_db()
+        app.logger.info("Database initialized successfully.")
     except Exception as e:
-        # If DB init fails, raise so that the error is visible in logs
+        # Log the error but do not crash the import: the error will still show in logs.
+        # If you want the deploy to fail on init-db error, re-raise the exception instead.
         app.logger.error("Failed to initialize DB: %s", e)
-        raise
+
+# Run it immediately so the DB exists before handling requests (works with Gunicorn)
+ensure_db()
+
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
