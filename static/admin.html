@@ -847,70 +847,60 @@
     </div>
 
     <script>
-      async function loadUsers() {
-        const usersLoading = document.getElementById("usersLoading");
-        const usersTable = document.getElementById("usersTable");
-        const userCount = document.getElementById("userCount");
-        usersLoading.style.display = "flex";
-        usersTable.innerHTML = "";
+  async function loadUsers() {
+    const usersLoading = document.getElementById("usersLoading");
+    const usersTable = document.getElementById("usersTable");
+    const userCount = document.getElementById("userCount");
+    usersLoading.style.display = "flex";
+    usersTable.innerHTML = "";
 
-        try {
-          const res = await fetch("/api/users?per_page=1000");
-          const data = await res.json();
+    try {
+      const res = await fetch("/api/users?per_page=1000");
+      const data = await res.json();
 
-          userCount.textContent = data.total;
-          if (data.users.length === 0) {
-            usersTable.innerHTML = `
-            <div class="no-users">
-              <div class="no-users-icon">📋</div>
-              <h3>No users yet</h3>
-              <p>Upload some LeetCode usernames to get started!</p>
-            </div>
-          `;
-            usersLoading.style.display = "none";
-            return;
-          }
+      userCount.textContent = data.total;
+      if (data.users.length === 0) {
+        usersTable.innerHTML = `
+          <div class="no-users">
+            <div class="no-users-icon">📋</div>
+            <h3>No users yet</h3>
+            <p>Upload some LeetCode usernames to get started!</p>
+          </div>
+        `;
+        usersLoading.style.display = "none";
+        return;
+      }
 
-          usersTable.innerHTML = `
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Total Solved</th>
-                  <th>Ranking</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.users
-                  .map(
-                    (user) => `
+      usersTable.innerHTML = `
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Total Solved</th>
+                <th>Ranking</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.users
+                .map(
+                  (user) => `
                   <tr>
                     <td>
-                      <a href="https://leetcode.com/${encodeURIComponent(
-                        user.username
-                      )}/" 
-                        target="_blank" rel="noopener noreferrer" 
-                        class="username-link">
+                      <a href="https://leetcode.com/${encodeURIComponent(user.username)}/" 
+                         target="_blank" rel="noopener noreferrer" 
+                         class="username-link">
                         ${user.username}
                       </a>
-
                     </td>
                     <td>${user.total}</td>
-                    <td>${
-                      user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"
-                    }</td>
-                    <td>${
-                      user.last_updated
-                        ? new Date(user.last_updated).toLocaleDateString()
-                        : "N/A"
-                    }</td>
+                    <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
+                    <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
                     <td>
-                      <button class="btn btn-danger" onclick="deleteUser(${JSON.stringify(
-                        user.username
-                      )})">
+                      <!-- Use data-username instead of inline JS -->
+                      <button class="btn btn-danger delete-btn" data-username="${user.username}">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3,6 5,6 21,6"></polyline>
                           <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
@@ -920,183 +910,181 @@
                     </td>
                   </tr>
                 `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </div>
-        `;
-        } catch (err) {
-          usersTable.innerHTML = `
-          <div class="message error" style="display: block;">
-            <h4>⚠️ Error loading users</h4>
-            <p>${err.message}</p>
-          </div>
-        `;
-        } finally {
-          usersLoading.style.display = "none";
-        }
-      }
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
 
-      async function deleteUser(username) {
-        if (
-          !confirm(
-            `Are you sure you want to delete the profile for '${username}'? This action cannot be undone.`
-          )
-        ) {
-          return;
-        }
-
-        const message = document.getElementById("deleteMessage");
-        message.style.display = "none";
-
-        try {
-          const res = await fetch(
-            `/admin/delete/${encodeURIComponent(username)}`,
-            {
-              method: "DELETE",
-            }
-          );
-          const data = await res.json();
-
-          if (data.ok) {
-            message.className = "message success";
-            message.innerHTML = `<h4>✅ Success!</h4><p>${data.message}</p>`;
-            message.style.display = "block";
-            loadUsers();
-          } else {
-            message.className = "message error";
-            message.innerHTML = `<h4>❌ Error</h4><p>${data.error}</p>`;
-            message.style.display = "block";
-          }
-        } catch (err) {
-          message.className = "message error";
-          message.innerHTML = `<h4>⚠️ Delete failed</h4><p>${err.message}</p>`;
-          message.style.display = "block";
-        }
-      }
-
-      async function deleteAllUsers() {
-        if (
-          !confirm(
-            "Are you absolutely sure? This will delete ALL users from the database and cannot be undone!"
-          )
-        ) {
-          return;
-        }
-
-        const message = document.getElementById("deleteMessage");
-        message.style.display = "none";
-        const deleteAllBtn = document.getElementById("deleteAllBtn");
-        const originalText = deleteAllBtn.innerHTML;
-        deleteAllBtn.disabled = true;
-        deleteAllBtn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border:2px solid #fff;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-right:8px;"></div>Deleting...`;
-
-        try {
-          const res = await fetch("/admin/delete_all", { method: "DELETE" });
-          const data = await res.json();
-
-          if (data.ok) {
-            message.className = "message success";
-            message.innerHTML = `<h4>✅ All Users Deleted!</h4><p>${data.message}</p>`;
-            message.style.display = "block";
-            loadUsers();
-          } else {
-            message.className = "message error";
-            message.innerHTML = `<h4>❌ Error</h4><p>${data.error}</p>`;
-            message.style.display = "block";
-          }
-        } catch (err) {
-          message.className = "message error";
-          message.innerHTML = `<h4>⚠️ Delete All Failed</h4><p>${err.message}</p>`;
-          message.style.display = "block";
-        } finally {
-          deleteAllBtn.disabled = false;
-          deleteAllBtn.innerHTML = originalText;
-        }
-      }
-
-      document
-        .getElementById("deleteAllBtn")
-        .addEventListener("click", deleteAllUsers);
-
-      document
-        .getElementById("uploadForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const usernames = document.getElementById("usernames").value.trim();
-          const uploadLoading = document.getElementById("uploadLoading");
-          const uploadResults = document.getElementById("uploadResults");
-          const submitBtn = e.target.querySelector("button");
-
-          if (!usernames) {
-            alert("Please enter at least one username.");
-            return;
-          }
-
-          uploadResults.style.display = "none";
-          uploadLoading.style.display = "flex";
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `<div class="spinner"></div>Uploading...`;
-
-          const formData = new FormData();
-          formData.append("usernames", usernames);
-
-          try {
-            const res = await fetch("/admin/upload", {
-              method: "POST",
-              body: formData,
-            });
-            const data = await res.json();
-
-            uploadLoading.style.display = "none";
-            uploadResults.style.display = "block";
-
-            if (data.success && data.success.length > 0) {
-              uploadResults.className = "message success";
-              uploadResults.innerHTML = `<h4>✅ Success!</h4><p>Added/Updated ${
-                data.success.length
-              } users:</p><ul>${data.success
-                .map((u) => `<li>${u}</li>`)
-                .join("")}</ul>`;
-            }
-
-            if (data.errors && data.errors.length > 0) {
-              if (data.success && data.success.length > 0) {
-                uploadResults.innerHTML += `<h4>❌ Errors (${
-                  data.errors.length
-                }):</h4><ul>${data.errors
-                  .map((e) => `<li>${e}</li>`)
-                  .join("")}</ul>`;
-              } else {
-                uploadResults.className = "message error";
-                uploadResults.innerHTML = `<h4>❌ Errors:</h4><ul>${data.errors
-                  .map((e) => `<li>${e}</li>`)
-                  .join("")}</ul>`;
-              }
-            }
-
-            if (!data.success && !data.errors) {
-              uploadResults.className = "message error";
-              uploadResults.innerHTML = `<h4>⚠️ No data processed</h4><p>Check your input and try again.</p>`;
-            }
-
-            if (data.success && data.success.length > 0) {
-              document.getElementById("usernames").value = "";
-              loadUsers();
-            }
-          } catch (err) {
-            uploadLoading.style.display = "none";
-            uploadResults.style.display = "block";
-            uploadResults.className = "message error";
-            uploadResults.innerHTML = `<h4>⚠️ Upload failed</h4><p>${err.message}</p>`;
-          }
-
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="8,12 12,16 16,12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>Upload & Fetch Stats`;
+      // Attach listeners to all delete buttons
+      document.querySelectorAll(".delete-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const username = btn.dataset.username;
+          await deleteUser(username);
         });
+      });
+    } catch (err) {
+      usersTable.innerHTML = `
+        <div class="message error" style="display: block;">
+          <h4>⚠️ Error loading users</h4>
+          <p>${err.message}</p>
+        </div>
+      `;
+    } finally {
+      usersLoading.style.display = "none";
+    }
+  }
 
-      loadUsers();
-    </script>
+  async function deleteUser(username) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the profile for '${username}'? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    const message = document.getElementById("deleteMessage");
+    message.style.display = "none";
+
+    try {
+      const res = await fetch(`/admin/delete/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        message.className = "message success";
+        message.innerHTML = `<h4>✅ Success!</h4><p>${data.message}</p>`;
+        message.style.display = "block";
+        loadUsers();
+      } else {
+        message.className = "message error";
+        message.innerHTML = `<h4>❌ Error</h4><p>${data.error}</p>`;
+        message.style.display = "block";
+      }
+    } catch (err) {
+      message.className = "message error";
+      message.innerHTML = `<h4>⚠️ Delete failed</h4><p>${err.message}</p>`;
+      message.style.display = "block";
+    }
+  }
+
+  async function deleteAllUsers() {
+    if (
+      !confirm(
+        "Are you absolutely sure? This will delete ALL users from the database and cannot be undone!"
+      )
+    ) {
+      return;
+    }
+
+    const message = document.getElementById("deleteMessage");
+    message.style.display = "none";
+    const deleteAllBtn = document.getElementById("deleteAllBtn");
+    const originalText = deleteAllBtn.innerHTML;
+    deleteAllBtn.disabled = true;
+    deleteAllBtn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border:2px solid #fff;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-right:8px;"></div>Deleting...`;
+
+    try {
+      const res = await fetch("/admin/delete_all", { method: "DELETE" });
+      const data = await res.json();
+
+      if (data.ok) {
+        message.className = "message success";
+        message.innerHTML = `<h4>✅ All Users Deleted!</h4><p>${data.message}</p>`;
+        message.style.display = "block";
+        loadUsers();
+      } else {
+        message.className = "message error";
+        message.innerHTML = `<h4>❌ Error</h4><p>${data.error}</p>`;
+        message.style.display = "block";
+      }
+    } catch (err) {
+      message.className = "message error";
+      message.innerHTML = `<h4>⚠️ Delete All Failed</h4><p>${err.message}</p>`;
+      message.style.display = "block";
+    } finally {
+      deleteAllBtn.disabled = false;
+      deleteAllBtn.innerHTML = originalText;
+    }
+  }
+
+  document.getElementById("deleteAllBtn").addEventListener("click", deleteAllUsers);
+
+  document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const usernames = document.getElementById("usernames").value.trim();
+    const uploadLoading = document.getElementById("uploadLoading");
+    const uploadResults = document.getElementById("uploadResults");
+    const submitBtn = e.target.querySelector("button");
+
+    if (!usernames) {
+      alert("Please enter at least one username.");
+      return;
+    }
+
+    uploadResults.style.display = "none";
+    uploadLoading.style.display = "flex";
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<div class="spinner"></div>Uploading...`;
+
+    const formData = new FormData();
+    formData.append("usernames", usernames);
+
+    try {
+      const res = await fetch("/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      uploadLoading.style.display = "none";
+      uploadResults.style.display = "block";
+
+      if (data.success && data.success.length > 0) {
+        uploadResults.className = "message success";
+        uploadResults.innerHTML = `<h4>✅ Success!</h4><p>Added/Updated ${data.success.length} users:</p><ul>${data.success
+          .map((u) => `<li>${u}</li>`)
+          .join("")}</ul>`;
+      }
+
+      if (data.errors && data.errors.length > 0) {
+        if (data.success && data.success.length > 0) {
+          uploadResults.innerHTML += `<h4>❌ Errors (${data.errors.length}):</h4><ul>${data.errors
+            .map((e) => `<li>${e}</li>`)
+            .join("")}</ul>`;
+        } else {
+          uploadResults.className = "message error";
+          uploadResults.innerHTML = `<h4>❌ Errors:</h4><ul>${data.errors
+            .map((e) => `<li>${e}</li>`)
+            .join("")}</ul>`;
+        }
+      }
+
+      if (!data.success && !data.errors) {
+        uploadResults.className = "message error";
+        uploadResults.innerHTML = `<h4>⚠️ No data processed</h4><p>Check your input and try again.</p>`;
+      }
+
+      if (data.success && data.success.length > 0) {
+        document.getElementById("usernames").value = "";
+        loadUsers();
+      }
+    } catch (err) {
+      uploadLoading.style.display = "none";
+      uploadResults.style.display = "block";
+      uploadResults.className = "message error";
+      uploadResults.innerHTML = `<h4>⚠️ Upload failed</h4><p>${err.message}</p>`;
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="8,12 12,16 16,12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>Upload & Fetch Stats`;
+  });
+
+  loadUsers();
+</script>
+
   </body>
 </html>
