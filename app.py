@@ -241,6 +241,32 @@ def admin_delete(username):
         return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
     else:
         return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
+    
+@app.route("/admin/delete_all", methods=["DELETE"])
+def admin_delete_all():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM leetcode_users")
+        # rowcount may be unreliable in psycopg2 after DELETE without RETURNING
+        deleted_count = cursor.rowcount if cursor.rowcount is not None else 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # Safely clear cache keys
+        for key in list(CACHE.keys()):
+            if key.startswith("lc:"):
+                CACHE.pop(key, None)
+
+        return jsonify({
+            "ok": True,
+            "message": f"All users deleted successfully. {deleted_count} records removed."
+        })
+    except Exception as e:
+        app.logger.error("Failed to delete all users: %s", e)
+        return jsonify({"ok": False, "error": f"Failed to delete all users: {str(e)}"}), 500
+
 
 @app.route("/api/users")
 def api_users():
