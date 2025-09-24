@@ -28,8 +28,8 @@ def cache_set(key, data, ttl=TTL_SECONDS):
     CACHE[key] = (time.time() + ttl, data)
 
 USER_PROFILE_QUERY = """
-query getUserProfile($username: String!) {
-  matchedUser(username: $username) {
+query getUser Profile($username: String!) {
+  matchedUser (username: $username) {
     username
     profile {
       ranking
@@ -49,7 +49,7 @@ def fetch_leetcode(username: str):
     headers = {
         "Content-Type": "application/json",
         "Referer": "https://leetcode.com",
-        "User-Agent": "Mozilla/5.0",
+        "User -Agent": "Mozilla/5.0",
     }
     r = requests.post(
         LEETCODE_GRAPHQL,
@@ -61,9 +61,9 @@ def fetch_leetcode(username: str):
     return r.json()
 
 def transform_response(data):
-    matched = (data or {}).get("data", {}).get("matchedUser")
+    matched = (data or {}).get("data", {}).get("matchedUser ")
     if not matched:
-        return {"ok": False, "error": "User not found or profile is private."}
+        return {"ok": False, "error": "User  not found or profile is private."}
 
     profile = matched.get("profile") or {}
     ac_list = matched.get("submitStats", {}).get("acSubmissionNum") or []
@@ -224,9 +224,33 @@ def admin_delete(username):
     CACHE.pop(key, None)
 
     if deleted:
-        return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
+        return jsonify({"ok": True, "message": f"User  '{username}' deleted successfully."})
     else:
-        return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
+        return jsonify({"ok": False, "error": f"User  '{username}' not found."}), 404
+
+# NEW: Route to delete all users (admin only, use DELETE method for consistency)
+@app.route("/admin/delete_all", methods=["DELETE"])
+def admin_delete_all():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM leetcode_users")
+        deleted_count = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # Clear all user-related cache entries
+        user_cache_keys = [k for k in CACHE.keys() if k.startswith("lc:")]
+        for key in user_cache_keys:
+            CACHE.pop(key, None)
+
+        return jsonify({
+            "ok": True,
+            "message": f"All users deleted successfully. {deleted_count} records removed."
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Failed to delete all users: {str(e)}"}), 500
 
 @app.route("/api/users")
 def api_users():

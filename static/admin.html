@@ -697,6 +697,20 @@
         </div>
         
         <div id="usersTable"></div>
+
+        <!-- NEW: Delete All Section (at the bottom of the users list) -->
+        <div id="delete-all-section" style="text-align: center; margin-top: 20px; padding: 15px; border-top: 1px solid black; background: radial-gradient(circle at 30% 20%, hsl(258, 90%, 66%, 0.1), transparent 50%), radial-gradient(circle at 70% 80%, hsl(262, 83%, 58%, 0.1), transparent 50%);">
+          <button id="deleteAllBtn" class="btn btn-primary" style="padding: 10px 20px; font-size: 16px; background-color: #743DF5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+              <polyline points="3,6 5,6 21,6"></polyline>
+              <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+            </svg>
+            Delete All Users
+          </button>
+          <div style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+            This will remove all users from the database. Use with caution!
+          </div>
+        </div>
         
         <div id="deleteMessage" class="message"></div>
       </div>
@@ -750,7 +764,7 @@
                     <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
                     <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
                     <td>
-                      <button class="btn btn-danger" onclick="deleteUser('${user.username}')">
+                      <button class="btn btn-danger" onclick="deleteUser ('${user.username}')">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3,6 5,6 21,6"></polyline>
                           <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
@@ -776,8 +790,8 @@
       }
     }
 
-    // Function to delete a user
-    async function deleteUser(username) {
+    // Function to delete a single user
+    async function deleteUser (username) {
       if (!confirm(`Are you sure you want to delete the profile for '${username}'? This action cannot be undone.`)) {
         return;
       }
@@ -817,6 +831,64 @@
         message.style.display = "block";
       }
     }
+
+    // NEW: Function to delete all users
+    async function deleteAllUsers() {
+      if (!confirm('Are you absolutely sure? This will delete ALL users from the database and cannot be undone! This action is irreversible.')) {
+        return;
+      }
+
+      const message = document.getElementById("deleteMessage");
+      message.style.display = "none";
+
+      // Disable the button during the request to prevent double-clicks
+      const deleteAllBtn = document.getElementById("deleteAllBtn");
+      const originalText = deleteAllBtn.innerHTML;
+      deleteAllBtn.disabled = true;
+      deleteAllBtn.innerHTML = `
+        <div class="spinner" style="width: 16px; height: 16px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px;"></div>
+        Deleting...
+      `;
+
+      try {
+        const res = await fetch('/admin/delete_all', {
+          method: "DELETE"
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          message.className = "message success";
+          message.innerHTML = `
+            <h4>✅ All Users Deleted!</h4>
+            <p>${data.message}</p>
+          `;
+          message.style.display = "block";
+          // Refresh the list after delete all
+          loadUsers();
+        } else {
+          message.className = "message error";
+          message.innerHTML = `
+            <h4>❌ Error</h4>
+            <p>${data.error}</p>
+          `;
+          message.style.display = "block";
+        }
+      } catch (err) {
+        message.className = "message error";
+        message.innerHTML = `
+          <h4>⚠️ Delete All Failed</h4>
+          <p>${err.message}</p>
+        `;
+        message.style.display = "block";
+      } finally {
+        // Re-enable the button
+        deleteAllBtn.disabled = false;
+        deleteAllBtn.innerHTML = originalText;
+      }
+    }
+
+    // Attach event listener to the delete all button
+    document.getElementById("deleteAllBtn").addEventListener("click", deleteAllUsers);
 
     // Upload form handler
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
@@ -918,3 +990,4 @@
   </script>
 </body>
 </html>
+
