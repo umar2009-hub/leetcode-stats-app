@@ -2,7 +2,7 @@ from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import requests
 import time
-import psycopg2
+import psycopg2  # CHANGED: use psycopg2 for PostgreSQL
 import os
 
 app = Flask(__name__, static_folder="static")
@@ -27,10 +27,9 @@ def cache_get(key):
 def cache_set(key, data, ttl=TTL_SECONDS):
     CACHE[key] = (time.time() + ttl, data)
 
-# <-- FIXED: correct GraphQL query (no stray spaces/typos) -->
 USER_PROFILE_QUERY = """
-query getUserProfile($username: String!) {
-  matchedUser(username: $username) {
+query getUser Profile($username: String!) {
+  matchedUser (username: $username) {
     username
     profile {
       ranking
@@ -46,54 +45,29 @@ query getUserProfile($username: String!) {
 }
 """
 
-# improved fetch with retries and better headers
-def fetch_leetcode(username: str, retries=2, timeout=30):
+def fetch_leetcode(username: str):
     headers = {
         "Content-Type": "application/json",
         "Referer": "https://leetcode.com",
-        "User-Agent": "Mozilla/5.0 (compatible; LeetStats/1.0; +https://your-site.example)",
-        "Accept": "application/json",
+        "User -Agent": "Mozilla/5.0",
     }
-
-    payload = {"query": USER_PROFILE_QUERY, "variables": {"username": username}}
-
-    for attempt in range(retries + 1):
-        try:
-            r = requests.post(LEETCODE_GRAPHQL, json=payload, headers=headers, timeout=timeout)
-            # If LeetCode returns non-JSON HTML, raise for status to trigger exception
-            r.raise_for_status()
-            # Try parse JSON; if parsing fails we'll raise
-            return r.json()
-        except requests.exceptions.HTTPError as http_err:
-            status = getattr(http_err.response, "status_code", None)
-            # If 4xx/5xx, don't retry except on 429 or 499 or 5xx
-            if status in (429, 499) or (status and 500 <= status < 600):
-                # short backoff then retry
-                if attempt < retries:
-                    time.sleep(1 + attempt * 1)
-                    continue
-            # return the full error (so transform_response sees it)
-            raise
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            if attempt < retries:
-                time.sleep(1 + attempt * 0.5)
-                continue
-            raise
-    # if all retries exhausted, raise last exception
-    raise RuntimeError("Failed to fetch leetcode profile after retries")
+    r = requests.post(
+        LEETCODE_GRAPHQL,
+        json={"query": USER_PROFILE_QUERY, "variables": {"username": username}},
+        headers=headers,
+        timeout=15,
+    )
+    r.raise_for_status()
+    return r.json()
 
 def transform_response(data):
-    matched = (data or {}).get("data", {}).get("matchedUser")
+    matched = (data or {}).get("data", {}).get("matchedUser ")
     if not matched:
-        # try to extract an error message if present
-        err_msg = (data or {}).get("errors")
-        if err_msg:
-            return {"ok": False, "error": f"GraphQL errors: {err_msg}"}
-        return {"ok": False, "error": "User not found or profile is private."}
+        return {"ok": False, "error": "User  not found or profile is private."}
 
     profile = matched.get("profile") or {}
     ac_list = matched.get("submitStats", {}).get("acSubmissionNum") or []
-    solved = {item.get("difficulty"): item.get("count", 0) for item in ac_list if "difficulty" in item}
+    solved = {item["difficulty"]: item.get("count", 0) for item in ac_list if "difficulty" in item}
 
     return {
         "ok": True,
@@ -109,17 +83,32 @@ def transform_response(data):
     }
 
 # ---------- DATABASE SETUP (PostgreSQL) ---------- #
+
 def get_db_connection():
+    """Connect to Postgres using DATABASE_URL. Convert deprecated scheme if needed.
+       Try SSL first (for managed providers), then retry without ssl if that fails (helpful for local)."""
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL not set in environment")
 
+    # Replace old scheme (some providers give postgres://)
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
 
+    # Parse URL to avoid conflicting sslmode if already in URL
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(url)
+    query_params = parse_qs(parsed.query)
+    sslmode = query_params.get('sslmode', [''])[0]
+
+    # Try with sslmode=require first (typical for managed DBs), fallback to no ssl
     try:
-        return psycopg2.connect(url, sslmode="require")
+        if sslmode != 'require':
+            return psycopg2.connect(url, sslmode="require")
+        else:
+            return psycopg2.connect(url)
     except Exception:
+        # Fallback for local dev where SSL isn't enabled
         return psycopg2.connect(url)
 
 def init_db():
@@ -142,18 +131,24 @@ def init_db():
     cursor.close()
     conn.close()
 
+# Ensure DB is initialized on import/startup (works with gunicorn and renders)
 def ensure_db():
     try:
         init_db()
         app.logger.info("Database initialized successfully.")
     except Exception as e:
+        # Log the error but do not crash the import: the error will still show in logs.
+        # If you want the deploy to fail on init-db error, re-raise the exception instead.
         app.logger.error("Failed to initialize DB: %s", e)
+
+# Run it immediately so the DB exists before handling requests (works with Gunicorn)
 ensure_db()
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
     cursor = conn.cursor()
-    solved = stats.get("solved", {})
+    solved = stats["solved"]
+
     cursor.execute("""
         INSERT INTO leetcode_users (username, ranking, reputation, easy, medium, hard, total, last_updated)
         VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
@@ -175,11 +170,13 @@ def store_user_stats(username, stats):
         solved.get("Hard", 0),
         solved.get("All", 0),
     ))
+
     conn.commit()
     cursor.close()
     conn.close()
 
 # ---------- CORE LOGIC ---------- #
+
 def fetch_or_update_user(username):
     key = f"lc:{username.lower()}"
     cached = cache_get(key)
@@ -196,14 +193,12 @@ def fetch_or_update_user(username):
     except requests.Timeout:
         return {"ok": False, "error": "LeetCode API timed out."}
     except requests.RequestException as e:
-        # include status code/text to help debugging (e.g. 499)
-        status = getattr(e.response, "status_code", None) if hasattr(e, "response") else None
-        text = getattr(e.response, "text", None) if hasattr(e, "response") else None
-        return {"ok": False, "error": f"Network error: {e} (status={status}) body={text}"}
+        return {"ok": False, "error": f"Network error: {e}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 # ---------- ROUTES ---------- #
+
 @app.route("/admin/upload", methods=["POST"])
 def admin_upload():
     text = request.form.get("usernames", "").strip()
@@ -220,8 +215,7 @@ def admin_upload():
             results["success"].append(username)
         else:
             results["errors"].append(f"{username}: {stats.get('error')}")
-        # small delay to reduce chance of being rate-limited
-        time.sleep(0.8)
+
     return jsonify(results)
 
 @app.route("/admin/delete/<username>", methods=["DELETE"])
@@ -238,9 +232,33 @@ def admin_delete(username):
     CACHE.pop(key, None)
 
     if deleted:
-        return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
+        return jsonify({"ok": True, "message": f"User  '{username}' deleted successfully."})
     else:
-        return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
+        return jsonify({"ok": False, "error": f"User  '{username}' not found."}), 404
+
+# NEW: Route to delete all users (admin only, use DELETE method for consistency)
+@app.route("/admin/delete_all", methods=["DELETE"])
+def admin_delete_all():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM leetcode_users")
+        deleted_count = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # Clear all user-related cache entries
+        user_cache_keys = [k for k in CACHE.keys() if k.startswith("lc:")]
+        for key in user_cache_keys:
+            CACHE.pop(key, None)
+
+        return jsonify({
+            "ok": True,
+            "message": f"All users deleted successfully. {deleted_count} records removed."
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Failed to delete all users: {str(e)}"}), 500
 
 @app.route("/api/users")
 def api_users():
@@ -251,6 +269,7 @@ def api_users():
 
         conn = get_db_connection()
         cursor = conn.cursor()
+
         cursor.execute("SELECT COUNT(*) FROM leetcode_users")
         total = cursor.fetchone()[0]
 
@@ -288,6 +307,7 @@ def api_users():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+# Simple debug route to check DB connectivity quickly
 @app.route("/debug/db")
 def debug_db():
     try:
@@ -309,11 +329,13 @@ def index():
 def admin():
     return send_from_directory("static", "admin.html")
 
+# Global exception handler that returns JSON (prevents HTML error pages)
 @app.errorhandler(Exception)
 def handle_exception(e):
     return jsonify({"ok": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
+    # For local dev: try to init DB (won't be used on Render where Gunicorn is the entrypoint)
     try:
         init_db()
         print("✅ Database initialized")
