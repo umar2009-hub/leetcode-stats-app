@@ -1,644 +1,736 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LeetCode Stats Viewer - Modern Dashboard</title>
-  <style>
-    /* CSS Reset and Base Styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LeetCode Stats Viewer - Modern Dashboard</title>
+    <style>
+      /* CSS Reset and Base Styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    /* Design System Variables */
-    :root {
-      /* Colors */
-      --background: hsl(240, 10%, 3.9%);
-      --foreground: hsl(0, 0%, 98%);
-      --surface: hsl(240, 8%, 6%);
-      --surface-elevated: hsl(240, 7%, 8%);
-      --card: hsl(240, 8%, 6%);
-      --card-foreground: hsl(0, 0%, 98%);
-      --card-hover: hsl(240, 7%, 8%);
-      --primary: hsl(258, 90%, 66%);
-      --primary-foreground: hsl(0, 0%, 98%);
-      --primary-muted: hsl(258, 90%, 76%);
-      --secondary: hsl(240, 4.8%, 15.9%);
-      --secondary-hover: hsl(240, 5%, 18%);
-      --accent: hsl(262, 83%, 58%);
-      --muted: hsl(240, 3.7%, 15.9%);
-      --muted-foreground: hsl(240, 5%, 64.9%);
-      --border: hsl(240, 3.7%, 15.9%);
-      --success: hsl(142, 76%, 36%);
-      --warning: hsl(48, 96%, 53%);
-      --danger: hsl(0, 84%, 60%);
-      
-      /* Gradients */
-      --gradient-primary: linear-gradient(135deg, hsl(258, 90%, 66%), hsl(262, 83%, 58%));
-      --gradient-hero: linear-gradient(135deg, hsl(240, 10%, 3.9%) 0%, hsl(258, 90%, 66%, 0.1) 50%, hsl(262, 83%, 58%, 0.1) 100%);
-      
-      /* Shadows */
-      --shadow-lg: 0 10px 15px -3px hsl(240, 10%, 3.9%, 0.1), 0 4px 6px -4px hsl(240, 10%, 3.9%, 0.1);
-      --shadow-xl: 0 20px 25px -5px hsl(240, 10%, 3.9%, 0.1), 0 8px 10px -6px hsl(240, 10%, 3.9%, 0.1);
-      --shadow-glow: 0 0 20px hsl(258, 90%, 66%, 0.3);
-      
-      /* Animation */
-      --transition-fast: 0.15s ease-out;
-      --transition-normal: 0.3s ease-out;
-      --transition-slow: 0.5s ease-out;
-      --bounce-in: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    }
+      /* Design System Variables */
+      :root {
+        /* Colors */
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --surface: hsl(240, 8%, 6%);
+        --surface-elevated: hsl(240, 7%, 8%);
+        --card: hsl(240, 8%, 6%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --card-hover: hsl(240, 7%, 8%);
+        --primary: hsl(258, 90%, 66%);
+        --primary-foreground: hsl(0, 0%, 98%);
+        --primary-muted: hsl(258, 90%, 76%);
+        --secondary: hsl(240, 4.8%, 15.9%);
+        --secondary-hover: hsl(240, 5%, 18%);
+        --accent: hsl(262, 83%, 58%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+        --border: hsl(240, 3.7%, 15.9%);
+        --success: hsl(142, 76%, 36%);
+        --warning: hsl(48, 96%, 53%);
+        --danger: hsl(0, 84%, 60%);
 
-    /* Base Styles */
-    html {
-      scroll-behavior: smooth;
-    }
+        /* Gradients */
+        --gradient-primary: linear-gradient(
+          135deg,
+          hsl(258, 90%, 66%),
+          hsl(262, 83%, 58%)
+        );
+        --gradient-hero: linear-gradient(
+          135deg,
+          hsl(240, 10%, 3.9%) 0%,
+          hsl(258, 90%, 66%, 0.1) 50%,
+          hsl(262, 83%, 58%, 0.1) 100%
+        );
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--background);
-      color: var(--foreground);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+        /* Shadows */
+        --shadow-lg: 0 10px 15px -3px hsl(240, 10%, 3.9%, 0.1),
+          0 4px 6px -4px hsl(240, 10%, 3.9%, 0.1);
+        --shadow-xl: 0 20px 25px -5px hsl(240, 10%, 3.9%, 0.1),
+          0 8px 10px -6px hsl(240, 10%, 3.9%, 0.1);
+        --shadow-glow: 0 0 20px hsl(258, 90%, 66%, 0.3);
 
-    /* Container */
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 1.5rem;
-    }
+        /* Animation */
+        --transition-fast: 0.15s ease-out;
+        --transition-normal: 0.3s ease-out;
+        --transition-slow: 0.5s ease-out;
+        --bounce-in: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
 
-    /* Hero Section */
-    .hero {
-      position: relative;
-      background: var(--gradient-hero);
-      padding: 4rem 0;
-      text-align: center;
-      overflow: hidden;
-    }
+      /* Base Styles */
+      html {
+        scroll-behavior: smooth;
+      }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: 
-        radial-gradient(circle at 30% 20%, hsl(258, 90%, 66%, 0.1), transparent 50%),
-        radial-gradient(circle at 70% 80%, hsl(262, 83%, 58%, 0.1), transparent 50%);
-    }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
 
-    .hero-content {
-      position: relative;
-      z-index: 1;
-      animation: fadeIn 0.8s ease-out;
-    }
+      /* Container */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
 
-    .hero h1 {
-      font-size: clamp(2.5rem, 5vw, 4rem);
-      font-weight: 800;
-      margin-bottom: 1rem;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+      /* Hero Section */
+      .hero {
+        position: relative;
+        background: var(--gradient-hero);
+        padding: 4rem 0;
+        text-align: center;
+        overflow: hidden;
+      }
 
-    .hero p {
-      font-size: 1.25rem;
-      color: var(--muted-foreground);
-      max-width: 600px;
-      margin: 0 auto 2rem;
-    }
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at 30% 20%,
+            hsl(258, 90%, 66%, 0.1),
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 70% 80%,
+            hsl(262, 83%, 58%, 0.1),
+            transparent 50%
+          );
+      }
 
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: hsl(258, 90%, 66%, 0.1);
-      border: 1px solid hsl(258, 90%, 66%, 0.2);
-      border-radius: 9999px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--primary);
-      margin-bottom: 1rem;
-    }
+      .hero-content {
+        position: relative;
+        z-index: 1;
+        animation: fadeIn 0.8s ease-out;
+      }
 
-    .admin-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      background: var(--secondary);
-      color: var(--foreground);
-      text-decoration: none;
-      border-radius: 0.5rem;
-      font-weight: 500;
-      border: 1px solid var(--border);
-      transition: all var(--transition-normal);
-      margin-top: 1rem;
-    }
+      .hero h1 {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
 
-    .admin-btn:hover {
-      background: var(--secondary-hover);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
-    }
+      .hero p {
+        font-size: 1.25rem;
+        color: var(--muted-foreground);
+        max-width: 600px;
+        margin: 0 auto 2rem;
+      }
 
-    .admin-btn svg {
-      width: 1rem;
-      height: 1rem;
-      transition: transform var(--transition-normal);
-    }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: hsl(258, 90%, 66%, 0.1);
+        border: 1px solid hsl(258, 90%, 66%, 0.2);
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--primary);
+        margin-bottom: 1rem;
+      }
 
-    .admin-btn:hover svg {
-      transform: rotate(90deg);
-    }
+      .admin-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: var(--secondary);
+        color: var(--foreground);
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        transition: all var(--transition-normal);
+        margin-top: 1rem;
+      }
 
-    /* Stats Cards */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      margin: 3rem 0;
-    }
+      .admin-btn:hover {
+        background: var(--secondary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
 
-    .stats-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      box-shadow: var(--shadow-lg);
-      transition: all var(--transition-normal);
-      opacity: 0;
-      transform: translateY(20px);
-      animation: slideUp 0.6s ease-out forwards;
-    }
+      .admin-btn svg {
+        width: 1rem;
+        height: 1rem;
+        transition: transform var(--transition-normal);
+      }
 
-    .stats-card:hover {
-      background: var(--card-hover);
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-xl), var(--shadow-glow);
-    }
+      .admin-btn:hover svg {
+        transform: rotate(90deg);
+      }
 
-    .stats-card.stagger-1 { animation-delay: 0.1s; }
-    .stats-card.stagger-2 { animation-delay: 0.2s; }
-    .stats-card.stagger-3 { animation-delay: 0.3s; }
-    .stats-card.stagger-4 { animation-delay: 0.4s; }
+      /* Stats Cards */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin: 3rem 0;
+      }
 
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: between;
-      margin-bottom: 1rem;
-    }
-
-    .card-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--card-foreground);
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-indicator {
-      width: 0.75rem;
-      height: 0.75rem;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: all var(--transition-normal);
-    }
-
-    .stats-card:hover .card-indicator {
-      background: var(--primary);
-      box-shadow: 0 0 10px var(--primary);
-    }
-
-    .card-stats {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .stat-label {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--muted-foreground);
-    }
-
-    .stat-value {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: var(--foreground);
-    }
-
-    /* Difficulty Badges */
-    .badges-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-    }
-
-    .difficulty-badge {
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border: 1px solid;
-      transition: all var(--transition-fast);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .difficulty-badge:hover {
-      transform: scale(1.02);
-      box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.1);
-    }
-
-    .badge-easy {
-      background: hsl(142, 76%, 36%, 0.1);
-      color: hsl(142, 76%, 50%);
-      border-color: hsl(142, 76%, 36%, 0.3);
-    }
-
-    .badge-medium {
-      background: hsl(48, 96%, 53%, 0.1);
-      color: hsl(48, 96%, 60%);
-      border-color: hsl(48, 96%, 53%, 0.3);
-    }
-
-    .badge-hard {
-      background: hsl(0, 84%, 60%, 0.1);
-      color: hsl(0, 84%, 65%);
-      border-color: hsl(0, 84%, 60%, 0.3);
-    }
-
-    .badge-total {
-      background: hsl(258, 90%, 66%, 0.1);
-      color: var(--primary-muted);
-      border-color: hsl(258, 90%, 66%, 0.3);
-    }
-
-    .progress-bar {
-      height: 0.25rem;
-      background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
-      border-radius: 9999px;
-      margin-top: 1rem;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform var(--transition-slow);
-    }
-
-    .stats-card:hover .progress-bar {
-      transform: scaleX(1);
-    }
-
-    /* Pagination */
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      margin: 2rem 0;
-      animation: fadeIn 0.6s ease-out;
-    }
-
-    .page-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: var(--card);
-      color: var(--foreground);
-      text-decoration: none;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      font-weight: 500;
-      font-size: 0.875rem;
-      transition: all var(--transition-normal);
-      cursor: pointer;
-    }
-
-    .page-btn:hover:not(:disabled) {
-      background: var(--card-hover);
-      border-color: hsl(258, 90%, 66%, 0.5);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .page-btn.active {
-      background: var(--primary);
-      color: var(--primary-foreground);
-      border-color: var(--primary);
-      box-shadow: 0 4px 12px hsl(258, 90%, 66%, 0.25);
-      transform: scale(1.05);
-    }
-
-    .page-btn:disabled {
-      background: hsl(240, 3.7%, 15.9%, 0.5);
-      color: var(--muted-foreground);
-      cursor: not-allowed;
-      border-color: hsl(240, 3.7%, 15.9%, 0.3);
-    }
-
-    .page-btn svg {
-      width: 1rem;
-      height: 1rem;
-    }
-
-    /* Loading States */
-    .loading-container {
-      text-align: center;
-      padding: 3rem 0;
-      animation: fadeIn 0.6s ease-out;
-    }
-
-    .loading-spinner {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 1rem 2rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      margin-bottom: 2rem;
-    }
-
-    .spinner {
-      width: 1.25rem;
-      height: 1.25rem;
-      border: 2px solid hsl(258, 90%, 66%, 0.3);
-      border-top: 2px solid var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    .skeleton-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .skeleton-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    .skeleton {
-      background: var(--muted);
-      border-radius: 0.25rem;
-      animation: shimmer 1.5s linear infinite;
-      background-size: 200px 100%;
-      background-image: linear-gradient(
-        90deg,
-        var(--muted) 0%,
-        var(--surface-elevated) 20%,
-        var(--muted) 40%,
-        var(--muted) 100%
-      );
-    }
-
-    /* Error States */
-    .error-container {
-      text-align: center;
-      padding: 3rem 0;
-      animation: fadeIn 0.6s ease-out;
-    }
-
-    .error-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 4rem;
-      height: 4rem;
-      background: hsl(0, 84%, 60%, 0.1);
-      border: 1px solid hsl(0, 84%, 60%, 0.2);
-      border-radius: 50%;
-      margin-bottom: 1rem;
-    }
-
-    .error-icon svg {
-      width: 2rem;
-      height: 2rem;
-      color: var(--danger);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    .retry-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      background: var(--primary);
-      color: var(--primary-foreground);
-      text-decoration: none;
-      border: none;
-      border-radius: 0.5rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-normal);
-      margin-top: 1rem;
-    }
-
-    .retry-btn:hover {
-      background: hsl(258, 90%, 60%);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px hsl(258, 90%, 66%, 0.25);
-    }
-
-    .retry-btn:active {
-      transform: scale(0.95);
-    }
-
-    .retry-btn svg {
-      width: 1rem;
-      height: 1rem;
-      transition: transform var(--transition-normal);
-    }
-
-    .retry-btn:hover svg {
-      transform: rotate(180deg);
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-      from {
+      .stats-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        transition: all var(--transition-normal);
         opacity: 0;
         transform: translateY(20px);
+        animation: slideUp 0.6s ease-out forwards;
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
 
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
+      .stats-card:hover {
+        background: var(--card-hover);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-xl), var(--shadow-glow);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
+      .stats-card.stagger-1 {
+        animation-delay: 0.1s;
       }
-    }
+      .stats-card.stagger-2 {
+        animation-delay: 0.2s;
+      }
+      .stats-card.stagger-3 {
+        animation-delay: 0.3s;
+      }
+      .stats-card.stagger-4 {
+        animation-delay: 0.4s;
+      }
 
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 0.6;
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: between;
+        margin-bottom: 1rem;
       }
-      50% {
-        opacity: 1;
-      }
-    }
 
-    @keyframes shimmer {
-      0% {
-        background-position: -200px 0;
+      .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--card-foreground);
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      100% {
-        background-position: calc(200px + 100%) 0;
-      }
-    }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      .hero {
-        padding: 2rem 0;
+      .card-indicator {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: all var(--transition-normal);
       }
-      
-      .hero h1 {
-        font-size: 2.5rem;
+
+      .stats-card:hover .card-indicator {
+        background: var(--primary);
+        box-shadow: 0 0 10px var(--primary);
       }
-      
-      .stats-grid {
-        grid-template-columns: 1fr;
+
+      .card-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
       }
-      
-      .container {
-        padding: 0 1rem;
+      .username-link {
+        color: #743df5; /* purple, matches your button theme */
+        font-weight: 600; /* make it stand out */
+        text-decoration: none; /* remove default underline */
+        transition: color 0.2s ease, text-decoration 0.2s ease;
       }
-    }
-  </style>
-</head>
-<body>
-  <!-- Hero Section -->
-  <div class="hero">
-    <div class="container">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="16,18 22,12 16,6"></polyline>
-            <polyline points="8,6 2,12 8,18"></polyline>
-          </svg>
-          LeetCode Analytics
+
+      .username-link:hover {
+        color: #5a2fc4; /* slightly darker purple on hover */
+        text-decoration: underline;
+      }
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .stat-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--muted-foreground);
+      }
+
+      .stat-value {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--foreground);
+      }
+
+      /* Difficulty Badges */
+      .badges-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+      }
+
+      .difficulty-badge {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .difficulty-badge:hover {
+        transform: scale(1.02);
+        box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.1);
+      }
+
+      .badge-easy {
+        background: hsl(142, 76%, 36%, 0.1);
+        color: hsl(142, 76%, 50%);
+        border-color: hsl(142, 76%, 36%, 0.3);
+      }
+
+      .badge-medium {
+        background: hsl(48, 96%, 53%, 0.1);
+        color: hsl(48, 96%, 60%);
+        border-color: hsl(48, 96%, 53%, 0.3);
+      }
+
+      .badge-hard {
+        background: hsl(0, 84%, 60%, 0.1);
+        color: hsl(0, 84%, 65%);
+        border-color: hsl(0, 84%, 60%, 0.3);
+      }
+
+      .badge-total {
+        background: hsl(258, 90%, 66%, 0.1);
+        color: var(--primary-muted);
+        border-color: hsl(258, 90%, 66%, 0.3);
+      }
+
+      .progress-bar {
+        height: 0.25rem;
+        background: linear-gradient(
+          90deg,
+          var(--success),
+          var(--warning),
+          var(--danger)
+        );
+        border-radius: 9999px;
+        margin-top: 1rem;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform var(--transition-slow);
+      }
+
+      .stats-card:hover .progress-bar {
+        transform: scaleX(1);
+      }
+
+      /* Pagination */
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 2rem 0;
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .page-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--card);
+        color: var(--foreground);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all var(--transition-normal);
+        cursor: pointer;
+      }
+
+      .page-btn:hover:not(:disabled) {
+        background: var(--card-hover);
+        border-color: hsl(258, 90%, 66%, 0.5);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .page-btn.active {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px hsl(258, 90%, 66%, 0.25);
+        transform: scale(1.05);
+      }
+
+      .page-btn:disabled {
+        background: hsl(240, 3.7%, 15.9%, 0.5);
+        color: var(--muted-foreground);
+        cursor: not-allowed;
+        border-color: hsl(240, 3.7%, 15.9%, 0.3);
+      }
+
+      .page-btn svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      /* Loading States */
+      .loading-container {
+        text-align: center;
+        padding: 3rem 0;
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .loading-spinner {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 2rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+      }
+
+      .spinner {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid hsl(258, 90%, 66%, 0.3);
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .skeleton-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .skeleton-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .skeleton {
+        background: var(--muted);
+        border-radius: 0.25rem;
+        animation: shimmer 1.5s linear infinite;
+        background-size: 200px 100%;
+        background-image: linear-gradient(
+          90deg,
+          var(--muted) 0%,
+          var(--surface-elevated) 20%,
+          var(--muted) 40%,
+          var(--muted) 100%
+        );
+      }
+
+      /* Error States */
+      .error-container {
+        text-align: center;
+        padding: 3rem 0;
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .error-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        background: hsl(0, 84%, 60%, 0.1);
+        border: 1px solid hsl(0, 84%, 60%, 0.2);
+        border-radius: 50%;
+        margin-bottom: 1rem;
+      }
+
+      .error-icon svg {
+        width: 2rem;
+        height: 2rem;
+        color: var(--danger);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .retry-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        text-decoration: none;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        margin-top: 1rem;
+      }
+
+      .retry-btn:hover {
+        background: hsl(258, 90%, 60%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px hsl(258, 90%, 66%, 0.25);
+      }
+
+      .retry-btn:active {
+        transform: scale(0.95);
+      }
+
+      .retry-btn svg {
+        width: 1rem;
+        height: 1rem;
+        transition: transform var(--transition-normal);
+      }
+
+      .retry-btn:hover svg {
+        transform: rotate(180deg);
+      }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: -200px 0;
+        }
+        100% {
+          background-position: calc(200px + 100%) 0;
+        }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .hero {
+          padding: 2rem 0;
+        }
+
+        .hero h1 {
+          font-size: 2.5rem;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .container {
+          padding: 0 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hero Section -->
+    <div class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="16,18 22,12 16,6"></polyline>
+              <polyline points="8,6 2,12 8,18"></polyline>
+            </svg>
+            LeetCode Analytics
+          </div>
+          <h1>🔍 LeetCode Users<br />Stats Viewer</h1>
+          <p>
+            Track progress, compare rankings, and analyze problem-solving
+            statistics across the LeetCode community.
+          </p>
+          <a href="/admin" class="admin-btn">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
+            </svg>
+            👨‍💼 Admin Upload
+          </a>
         </div>
-        <h1>🔍 LeetCode Users<br>Stats Viewer</h1>
-        <p>
-          Track progress, compare rankings, and analyze problem-solving statistics 
-          across the LeetCode community.
-        </p>
-        <a href="/admin" class="admin-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+      <!-- Loading State -->
+      <div id="loading" class="loading-container">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <span>Loading users...</span>
+        </div>
+        <div class="skeleton-grid">
+          <!-- Skeleton cards will be generated by JS -->
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="error" class="error-container" style="display: none">
+        <div class="error-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
-          👨‍💼 Admin Upload
-        </a>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.5rem">
+          Oops! Something went wrong
+        </h3>
+        <p
+          id="error-message"
+          style="color: var(--muted-foreground); margin-bottom: 1rem"
+        >
+          Failed to load users. Please try again.
+        </p>
+        <button class="retry-btn" onclick="loadUsers(currentPage)">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23,4 23,10 17,10"></polyline>
+            <path d="M20.49,15a9,9,0,1,1-2.12-9.36L23,10"></path>
+          </svg>
+          Try Again
+        </button>
       </div>
+
+      <!-- Users Grid -->
+      <div id="users-grid" class="stats-grid" style="display: none"></div>
+
+      <!-- footer-->
+      <div id="pagination" class="pagination" style="display: none"></div>
     </div>
-  </div>
-
-  <!-- Main Content -->
-  <div class="container">
-    <!-- Loading State -->
-    <div id="loading" class="loading-container">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <span>Loading users...</span>
+    <footer
+      style="
+        background: radial-gradient(
+          circle at 30% 20%,
+          hsla(258, 90%, 66%, 0.272),
+          transparent 50%
+        );
+        color: #9e84ff;
+        padding: 40px 20px;
+        font-family: 'Poppins', sans-serif;
+        text-align: center;
+      "
+    >
+      <div style="max-width: 1200px; margin: 0 auto">
+        <p style="font-weight: 600; font-size: 1.2rem; margin-bottom: 10px">
+          &copy; 2025 LeetCode Users Stats Viewer. All rights reserved.
+        </p>
+        <p
+          style="
+            font-weight: 400;
+            font-size: 0.9rem;
+            color: #b3a4f9;
+            margin-bottom: 20px;
+          "
+        >
+          Created by Umar Abdullah
+        </p>
       </div>
-      <div class="skeleton-grid">
-        <!-- Skeleton cards will be generated by JS -->
-      </div>
-    </div>
+    </footer>
 
-    <!-- Error State -->
-    <div id="error" class="error-container" style="display: none;">
-      <div class="error-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
-      </div>
-      <h3 style="margin-bottom: 0.5rem; font-size: 1.5rem;">Oops! Something went wrong</h3>
-      <p id="error-message" style="color: var(--muted-foreground); margin-bottom: 1rem;">
-        Failed to load users. Please try again.
-      </p>
-      <button class="retry-btn" onclick="loadUsers(currentPage)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23,4 23,10 17,10"></polyline>
-          <path d="M20.49,15a9,9,0,1,1-2.12-9.36L23,10"></path>
-        </svg>
-        Try Again
-      </button>
-    </div>
+    <script>
+      let currentPage = 1;
+      const perPage = 12;
+      let totalPages = 1;
 
-    <!-- Users Grid -->
-    <div id="users-grid" class="stats-grid" style="display: none;"></div>
+      // Create skeleton loading cards
+      function createSkeletonCards() {
+        const skeletonGrid = document.querySelector(".skeleton-grid");
+        skeletonGrid.innerHTML = "";
 
-    <!-- footer-->
-    <div id="pagination" class="pagination" style="display: none;"></div>
-  </div>
-  <footer style="background: radial-gradient(circle at 30% 20%, hsla(258, 90%, 66%, 0.272), transparent 50%); color: #9e84ff; padding: 40px 20px; font-family: 'Poppins', sans-serif; text-align: center;">
-  <div style="max-width: 1200px; margin: 0 auto;">
-    <p style="font-weight: 600; font-size: 1.2rem; margin-bottom: 10px;">
-      &copy; 2025 LeetCode Users Stats Viewer. All rights reserved.
-    </p>
-    <p style="font-weight: 400; font-size: 0.9rem; color: #b3a4f9; margin-bottom: 20px;">
-      Created by Umar Abdullah
-    </p>
-  </div>
-</footer>
-
-  <script>
-    let currentPage = 1;
-    const perPage = 12;
-    let totalPages = 1;
-
-    // Create skeleton loading cards
-    function createSkeletonCards() {
-      const skeletonGrid = document.querySelector('.skeleton-grid');
-      skeletonGrid.innerHTML = '';
-      
-      for (let i = 0; i < 8; i++) {
-        const card = document.createElement('div');
-        card.className = `skeleton-card stagger-${(i % 4) + 1}`;
-        card.innerHTML = `
+        for (let i = 0; i < 8; i++) {
+          const card = document.createElement("div");
+          card.className = `skeleton-card stagger-${(i % 4) + 1}`;
+          card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <div class="skeleton" style="height: 1.5rem; width: 8rem;"></div>
             <div class="skeleton" style="height: 0.75rem; width: 0.75rem; border-radius: 50%;"></div>
@@ -656,53 +748,66 @@
             <div class="skeleton" style="height: 2rem; border-radius: 0.5rem;"></div>
           </div>
         `;
-        skeletonGrid.appendChild(card);
+          skeletonGrid.appendChild(card);
+        }
       }
-    }
 
-    // Show loading state
-    function showLoading() {
-      document.getElementById('loading').style.display = 'block';
-      document.getElementById('error').style.display = 'none';
-      document.getElementById('users-grid').style.display = 'none';
-      document.getElementById('pagination').style.display = 'none';
-      createSkeletonCards();
-    }
+      // Show loading state
+      function showLoading() {
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("error").style.display = "none";
+        document.getElementById("users-grid").style.display = "none";
+        document.getElementById("pagination").style.display = "none";
+        createSkeletonCards();
+      }
 
-    // Show error state
-    function showError(message) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('users-grid').style.display = 'none';
-      document.getElementById('pagination').style.display = 'none';
-      document.getElementById('error-message').textContent = message;
-    }
+      // Show error state
+      function showError(message) {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "block";
+        document.getElementById("users-grid").style.display = "none";
+        document.getElementById("pagination").style.display = "none";
+        document.getElementById("error-message").textContent = message;
+      }
 
-    // Show users grid
-    function showUsers() {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('error').style.display = 'none';
-      document.getElementById('users-grid').style.display = 'grid';
-      document.getElementById('pagination').style.display = 'flex';
-    }
+      // Show users grid
+      function showUsers() {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "none";
+        document.getElementById("users-grid").style.display = "grid";
+        document.getElementById("pagination").style.display = "flex";
+      }
 
-    // Create user card
-    function createUserCard(user, index) {
-      return `
+      // Create user card - updated so only username text is clickable
+      function createUserCard(user, index) {
+        const profileUrl = `https://leetcode.com/${encodeURIComponent(
+          user.username
+        )}/`;
+
+        return `
         <div class="stats-card stagger-${(index % 4) + 1}">
           <div class="card-header">
-            <h3 class="card-title">${user.username}</h3>
+            <h3 class="card-title">
+              <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="username-link">
+                ${user.username}
+              </a>
+
+            </h3>
             <div class="card-indicator"></div>
           </div>
           
           <div class="card-stats">
             <div class="stat-row">
               <span class="stat-label">Ranking:</span>
-              <span class="stat-value">${user.ranking ? `#${user.ranking.toLocaleString()}` : 'N/A'}</span>
+              <span class="stat-value">${
+                user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"
+              }</span>
             </div>
             <div class="stat-row">
               <span class="stat-label">Reputation:</span>
-              <span class="stat-value">${user.reputation ? user.reputation.toLocaleString() : 'N/A'}</span>
+              <span class="stat-value">${
+                user.reputation ? user.reputation.toLocaleString() : "N/A"
+              }</span>
             </div>
           </div>
 
@@ -728,85 +833,92 @@
           <div class="progress-bar"></div>
         </div>
       `;
-    }
+      }
 
-    // Load users from API
-    async function loadUsers(page = 1) {
-      showLoading();
-      currentPage = page;
+      // Load users from API
+      async function loadUsers(page = 1) {
+        showLoading();
+        currentPage = page;
 
-      try {
-        const response = await fetch(`/api/users?page=${page}&per_page=${perPage}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+          const response = await fetch(
+            `/api/users?page=${page}&per_page=${perPage}`
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          if (data.users.length === 0 && page === 1) {
+            showError("No users found. Upload some via Admin!");
+            return;
+          }
+
+          // Render users
+          const usersGrid = document.getElementById("users-grid");
+          usersGrid.innerHTML = data.users
+            .map((user, index) => createUserCard(user, index))
+            .join("");
+
+          totalPages = data.total_pages;
+          renderPagination(data.total_pages, page);
+          showUsers();
+        } catch (err) {
+          console.error("Error loading users:", err);
+          showError(
+            "Failed to load users. Please check your connection and try again."
+          );
         }
-        
-        const data = await response.json();
+      }
 
-        if (data.users.length === 0 && page === 1) {
-          showError("No users found. Upload some via Admin!");
+      // Render pagination
+      function renderPagination(totalPages, current) {
+        const pagination = document.getElementById("pagination");
+
+        if (totalPages <= 1) {
+          pagination.style.display = "none";
           return;
         }
 
-        // Render users
-        const usersGrid = document.getElementById('users-grid');
-        usersGrid.innerHTML = data.users.map((user, index) => 
-          createUserCard(user, index)
-        ).join('');
+        // Generate visible pages
+        const getVisiblePages = () => {
+          const delta = 2;
+          const range = [];
+          const rangeWithDots = [];
 
-        totalPages = data.total_pages;
-        renderPagination(data.total_pages, page);
-        showUsers();
+          for (
+            let i = Math.max(2, current - delta);
+            i <= Math.min(totalPages - 1, current + delta);
+            i++
+          ) {
+            range.push(i);
+          }
 
-      } catch (err) {
-        console.error("Error loading users:", err);
-        showError("Failed to load users. Please check your connection and try again.");
-      }
-    }
+          if (current - delta > 2) {
+            rangeWithDots.push(1, "...");
+          } else {
+            rangeWithDots.push(1);
+          }
 
-    // Render pagination
-    function renderPagination(totalPages, current) {
-      const pagination = document.getElementById('pagination');
-      
-      if (totalPages <= 1) {
-        pagination.style.display = 'none';
-        return;
-      }
+          rangeWithDots.push(...range);
 
-      // Generate visible pages
-      const getVisiblePages = () => {
-        const delta = 2;
-        const range = [];
-        const rangeWithDots = [];
+          if (current + delta < totalPages - 1) {
+            rangeWithDots.push("...", totalPages);
+          } else if (totalPages > 1) {
+            rangeWithDots.push(totalPages);
+          }
 
-        for (let i = Math.max(2, current - delta); 
-             i <= Math.min(totalPages - 1, current + delta); 
-             i++) {
-          range.push(i);
-        }
+          return rangeWithDots;
+        };
 
-        if (current - delta > 2) {
-          rangeWithDots.push(1, '...');
-        } else {
-          rangeWithDots.push(1);
-        }
+        const visiblePages = getVisiblePages();
 
-        rangeWithDots.push(...range);
-
-        if (current + delta < totalPages - 1) {
-          rangeWithDots.push('...', totalPages);
-        } else if (totalPages > 1) {
-          rangeWithDots.push(totalPages);
-        }
-
-        return rangeWithDots;
-      };
-
-      const visiblePages = getVisiblePages();
-
-      let html = `
-        <button class="page-btn" onclick="loadUsers(${current - 1})" ${current === 1 ? 'disabled' : ''}>
+        let html = `
+        <button class="page-btn" onclick="loadUsers(${current - 1})" ${
+          current === 1 ? "disabled" : ""
+        }>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15,18 9,12 15,6"></polyline>
           </svg>
@@ -814,19 +926,22 @@
         </button>
       `;
 
-      visiblePages.forEach(page => {
-        if (page === '...') {
-          html += '<span style="padding: 0.75rem; color: var(--muted-foreground);">...</span>';
-        } else {
-          html += `
-            <button class="page-btn ${page === current ? 'active' : ''}" 
+        visiblePages.forEach((page) => {
+          if (page === "...") {
+            html +=
+              '<span style="padding: 0.75rem; color: var(--muted-foreground);">...</span>';
+          } else {
+            html += `
+            <button class="page-btn ${page === current ? "active" : ""}" 
                     onclick="loadUsers(${page})">${page}</button>
           `;
-        }
-      });
+          }
+        });
 
-      html += `
-        <button class="page-btn" onclick="loadUsers(${current + 1})" ${current === totalPages ? 'disabled' : ''}>
+        html += `
+        <button class="page-btn" onclick="loadUsers(${current + 1})" ${
+          current === totalPages ? "disabled" : ""
+        }>
           Next
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9,18 15,12 9,6"></polyline>
@@ -834,22 +949,22 @@
         </button>
       `;
 
-      pagination.innerHTML = html;
-      pagination.style.display = 'flex';
-    }
-
-    // Page change handler with smooth scroll
-    function changePage(page) {
-      if (page >= 1 && page <= totalPages && page !== currentPage) {
-        loadUsers(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        pagination.innerHTML = html;
+        pagination.style.display = "flex";
       }
-    }
 
-    // Initialize app
-    document.addEventListener('DOMContentLoaded', () => {
-      loadUsers(1);
-    });
-  </script>
-</body>
+      // Page change handler with smooth scroll
+      function changePage(page) {
+        if (page >= 1 && page <= totalPages && page !== currentPage) {
+          loadUsers(page);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
+
+      // Initialize app
+      document.addEventListener("DOMContentLoaded", () => {
+        loadUsers(1);
+      });
+    </script>
+  </body>
 </html>
