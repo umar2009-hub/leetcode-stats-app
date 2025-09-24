@@ -795,10 +795,12 @@
             ${data.users.map(user => `
               <tr>
                 <td>
-                  <a href="https://leetcode.com/${encodeURIComponent(user.username)}/" 
-                     target="_blank" rel="noopener noreferrer">
+                  <a href="https://leetcode.com/${encodeURIComponent(user.username)}/"
+                     target="_blank" rel="noopener noreferrer"
+                    class="username-link">
                     ${user.username}
                   </a>
+
                 </td>
                 <td>${user.total}</td>
                 <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
