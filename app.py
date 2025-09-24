@@ -29,8 +29,8 @@ def cache_set(key, data, ttl=TTL_SECONDS):
 
 # <-- FIXED: correct GraphQL query (no stray spaces/typos) -->
 USER_PROFILE_QUERY = """
-query getUserProfile($username: String!) {
-  matchedUser(username: $username) {
+query getUser Profile($username: String!) {
+  matchedUser (username: $username) {
     username
     profile {
       ranking
@@ -51,7 +51,7 @@ def fetch_leetcode(username: str, retries=2, timeout=30):
     headers = {
         "Content-Type": "application/json",
         "Referer": "https://leetcode.com",
-        "User-Agent": "Mozilla/5.0 (compatible; LeetStats/1.0; +https://your-site.example)",
+        "User -Agent": "Mozilla/5.0 (compatible; LeetStats/1.0; +https://your-site.example)",
         "Accept": "application/json",
     }
 
@@ -83,13 +83,13 @@ def fetch_leetcode(username: str, retries=2, timeout=30):
     raise RuntimeError("Failed to fetch leetcode profile after retries")
 
 def transform_response(data):
-    matched = (data or {}).get("data", {}).get("matchedUser")
+    matched = (data or {}).get("data", {}).get("matchedUser ")
     if not matched:
         # try to extract an error message if present
         err_msg = (data or {}).get("errors")
         if err_msg:
             return {"ok": False, "error": f"GraphQL errors: {err_msg}"}
-        return {"ok": False, "error": "User not found or profile is private."}
+        return {"ok": False, "error": "User  not found or profile is private."}
 
     profile = matched.get("profile") or {}
     ac_list = matched.get("submitStats", {}).get("acSubmissionNum") or []
@@ -180,11 +180,12 @@ def store_user_stats(username, stats):
     conn.close()
 
 # ---------- CORE LOGIC ---------- #
-def fetch_or_update_user(username):
+def fetch_or_update_user(username, force=False):
     key = f"lc:{username.lower()}"
-    cached = cache_get(key)
-    if cached and cached.get("ok"):
-        return cached
+    if not force:
+        cached = cache_get(key)
+        if cached and cached.get("ok"):
+            return cached
 
     try:
         data = fetch_leetcode(username)
@@ -238,9 +239,9 @@ def admin_delete(username):
     CACHE.pop(key, None)
 
     if deleted:
-        return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
+        return jsonify({"ok": True, "message": f"User  '{username}' deleted successfully."})
     else:
-        return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
+        return jsonify({"ok": False, "error": f"User  '{username}' not found."}), 404
     
 @app.route("/admin/delete_all", methods=["DELETE"])
 def admin_delete_all():
@@ -275,9 +276,24 @@ def api_users():
         per_page = int(request.args.get("per_page", 12))
         offset = (page - 1) * per_page
 
+        # First, get all usernames from DB
+        conn1 = get_db_connection()
+        cursor1 = conn1.cursor()
+        cursor1.execute("SELECT username FROM leetcode_users WHERE ranking IS NOT NULL")
+        all_usernames = [row[0] for row in cursor1.fetchall()]
+        cursor1.close()
+        conn1.close()
+
+        # Fetch fresh data for all users (force refresh for real-time)
+        for username in all_usernames:
+            fetch_or_update_user(username, force=True)
+            # Small delay to avoid rate limiting (adjust as needed; assumes small number of users)
+            time.sleep(0.2)
+
+        # Now query the DB for paginated results (now updated with fresh data)
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM leetcode_users")
+        cursor.execute("SELECT COUNT(*) FROM leetcode_users WHERE ranking IS NOT NULL")
         total = cursor.fetchone()[0]
 
         cursor.execute("""
@@ -312,6 +328,7 @@ def api_users():
             "total_pages": (total + per_page - 1) // per_page,
         })
     except Exception as e:
+        app.logger.error("Error in /api/users: %s", e)
         return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/debug/db")
