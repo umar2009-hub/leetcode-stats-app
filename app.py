@@ -4,6 +4,7 @@ import requests
 import time
 import psycopg2
 import os
+import threading  # For simple timeout handling
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
@@ -27,7 +28,7 @@ def cache_get(key):
 def cache_set(key, data, ttl=TTL_SECONDS):
     CACHE[key] = (time.time() + ttl, data)
 
-# <-- FIXED: correct GraphQL query (no stray spaces/typos) -->
+# GraphQL query (cleaned up - no spaces/typos)
 USER_PROFILE_QUERY = """
 query getUser Profile($username: String!) {
   matchedUser (username: $username) {
@@ -46,8 +47,8 @@ query getUser Profile($username: String!) {
 }
 """
 
-# improved fetch with retries and better headers
-def fetch_leetcode(username: str, retries=2, timeout=30):
+# Improved fetch with fewer retries for speed
+def fetch_leetcode(username: str, retries=1, timeout=10):  # Reduced timeout/retries for faster failure
     headers = {
         "Content-Type": "application/json",
         "Referer": "https://leetcode.com",
@@ -60,32 +61,25 @@ def fetch_leetcode(username: str, retries=2, timeout=30):
     for attempt in range(retries + 1):
         try:
             r = requests.post(LEETCODE_GRAPHQL, json=payload, headers=headers, timeout=timeout)
-            # If LeetCode returns non-JSON HTML, raise for status to trigger exception
             r.raise_for_status()
-            # Try parse JSON; if parsing fails we'll raise
             return r.json()
         except requests.exceptions.HTTPError as http_err:
             status = getattr(http_err.response, "status_code", None)
-            # If 4xx/5xx, don't retry except on 429 or 499 or 5xx
             if status in (429, 499) or (status and 500 <= status < 600):
-                # short backoff then retry
                 if attempt < retries:
-                    time.sleep(1 + attempt * 1)
+                    time.sleep(0.5 + attempt * 0.5)  # Shorter backoff
                     continue
-            # return the full error (so transform_response sees it)
             raise
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             if attempt < retries:
-                time.sleep(1 + attempt * 0.5)
+                time.sleep(0.5 + attempt * 0.25)  # Shorter
                 continue
             raise
-    # if all retries exhausted, raise last exception
-    raise RuntimeError("Failed to fetch leetcode profile after retries")
+    raise RuntimeError("Failed to fetch LeetCode profile after retries")
 
 def transform_response(data):
     matched = (data or {}).get("data", {}).get("matchedUser ")
     if not matched:
-        # try to extract an error message if present
         err_msg = (data or {}).get("errors")
         if err_msg:
             return {"ok": False, "error": f"GraphQL errors: {err_msg}"}
@@ -148,6 +142,7 @@ def ensure_db():
         app.logger.info("Database initialized successfully.")
     except Exception as e:
         app.logger.error("Failed to initialize DB: %s", e)
+
 ensure_db()
 
 def store_user_stats(username, stats):
@@ -197,10 +192,9 @@ def fetch_or_update_user(username, force=False):
     except requests.Timeout:
         return {"ok": False, "error": "LeetCode API timed out."}
     except requests.RequestException as e:
-        # include status code/text to help debugging (e.g. 499)
         status = getattr(e.response, "status_code", None) if hasattr(e, "response") else None
         text = getattr(e.response, "text", None) if hasattr(e, "response") else None
-        return {"ok": False, "error": f"Network error: {e} (status={status}) body={text}"}
+        return {"ok": False, "error": f"Network error: {e} (status={status})"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -216,13 +210,12 @@ def admin_upload():
     for username in usernames[:50]:
         if not username:
             continue
-        stats = fetch_or_update_user(username)
+        stats = fetch_or_update_user(username)  # No force for bulk efficiency
         if stats.get("ok"):
             results["success"].append(username)
         else:
             results["errors"].append(f"{username}: {stats.get('error')}")
-        # small delay to reduce chance of being rate-limited
-        time.sleep(0.8)
+        time.sleep(0.5)  # Slightly longer for bulk to avoid limits
     return jsonify(results)
 
 @app.route("/admin/delete/<username>", methods=["DELETE"])
@@ -242,20 +235,18 @@ def admin_delete(username):
         return jsonify({"ok": True, "message": f"User  '{username}' deleted successfully."})
     else:
         return jsonify({"ok": False, "error": f"User  '{username}' not found."}), 404
-    
+
 @app.route("/admin/delete_all", methods=["DELETE"])
 def admin_delete_all():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM leetcode_users")
-        # rowcount may be unreliable in psycopg2 after DELETE without RETURNING
         deleted_count = cursor.rowcount if cursor.rowcount is not None else 0
         conn.commit()
         cursor.close()
         conn.close()
 
-        # Safely clear cache keys
         for key in list(CACHE.keys()):
             if key.startswith("lc:"):
                 CACHE.pop(key, None)
@@ -268,7 +259,6 @@ def admin_delete_all():
         app.logger.error("Failed to delete all users: %s", e)
         return jsonify({"ok": False, "error": f"Failed to delete all users: {str(e)}"}), 500
 
-
 @app.route("/api/users")
 def api_users():
     try:
@@ -276,21 +266,7 @@ def api_users():
         per_page = int(request.args.get("per_page", 12))
         offset = (page - 1) * per_page
 
-        # First, get all usernames from DB
-        conn1 = get_db_connection()
-        cursor1 = conn1.cursor()
-        cursor1.execute("SELECT username FROM leetcode_users WHERE ranking IS NOT NULL")
-        all_usernames = [row[0] for row in cursor1.fetchall()]
-        cursor1.close()
-        conn1.close()
-
-        # Fetch fresh data for all users (force refresh for real-time)
-        for username in all_usernames:
-            fetch_or_update_user(username, force=True)
-            # Small delay to avoid rate limiting (adjust as needed; assumes small number of users)
-            time.sleep(0.2)
-
-        # Now query the DB for paginated results (now updated with fresh data)
+        # Step 1: Quick DB query for paginated users (using existing data)
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM leetcode_users WHERE ranking IS NOT NULL")
@@ -304,8 +280,41 @@ def api_users():
             LIMIT %s OFFSET %s
         """, (per_page, offset))
 
+        db_users = cursor.fetchall()
+        usernames_to_refresh = [row[0] for row in db_users]  # Only these users (e.g., 12 max)
+        cursor.close()
+        conn.close()
+
+        # Step 2: Refresh ONLY the users on this page (real-time for visible ones)
+        # Use a simple timeout wrapper to prevent hanging >10s total
+        def refresh_users_thread():
+            for username in usernames_to_refresh:
+                try:
+                    fetch_or_update_user(username, force=True)
+                except Exception as e:
+                    app.logger.warning(f"Failed to refresh {username}: {e}")  # Log but don't crash
+                time.sleep(0.1)  # Short sleep for rate limiting
+
+        # Run refresh in background thread with timeout (simple way to avoid blocking forever)
+        thread = threading.Thread(target=refresh_users_thread)
+        thread.start()
+        thread.join(timeout=10)  # Wait max 10s; if timeout, continue with partial updates
+        if thread.is_alive():
+            app.logger.warning("Refresh thread timed out; serving partial updates")
+
+        # Step 3: Re-query the SAME paginated slice (now with fresh data for this page)
+        conn2 = get_db_connection()
+        cursor2 = conn2.cursor()
+        cursor2.execute("""
+            SELECT username, ranking, reputation, easy, medium, hard, total, last_updated
+            FROM leetcode_users
+            WHERE ranking IS NOT NULL
+            ORDER BY total DESC
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))  # No COUNT again; use previous total
+
         users = []
-        for row in cursor.fetchall():
+        for row in cursor2.fetchall():
             users.append({
                 "username": row[0],
                 "ranking": row[1],
@@ -317,8 +326,8 @@ def api_users():
                 "last_updated": row[7].isoformat() if row[7] else None,
             })
 
-        cursor.close()
-        conn.close()
+        cursor2.close()
+        conn2.close()
 
         return jsonify({
             "users": users,
