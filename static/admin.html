@@ -304,6 +304,8 @@
         cursor: pointer;
         transition: all var(--transition-normal);
         user-select: none;
+        /* default width auto - we will only make some full-width on small screens where needed */
+        width: auto;
       }
 
       .btn:disabled {
@@ -341,6 +343,7 @@
         border-color: var(--danger);
         padding: 0.5rem 0.75rem;
         font-size: 0.75rem;
+        white-space: nowrap; /* prevent wrapping and keep button compact */
       }
 
       .btn-danger:hover:not(:disabled) {
@@ -460,14 +463,16 @@
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 0.75rem;
-        overflow: hidden;
+        overflow: auto; /* allow horizontal scrolling on small screens */
         box-shadow: var(--shadow-lg);
       }
 
       table {
         width: 100%;
         border-collapse: collapse;
+        min-width: 600px; /* prevents collapsing columns on narrow screens */
       }
+
       .username-link {
         color: #743df5; /* purple, matches your button theme */
         font-weight: 600; /* make it stand out */
@@ -527,6 +532,34 @@
         font-size: 3rem;
         margin-bottom: 1rem;
         opacity: 0.5;
+      }
+
+      /* Delete All Section center */
+      #delete-all-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 20px;
+      }
+
+      /* Ensure the action (delete) column doesn't collapse */
+      table thead th:last-child,
+      table tbody td:last-child {
+        min-width: 120px;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      /* Make sure per-row delete buttons remain compact and visible */
+      .delete-btn {
+        display: inline-flex;
+        width: auto;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.82rem;
+        white-space: nowrap;
+        justify-content: center;
       }
 
       /* Animations */
@@ -601,7 +634,7 @@
         }
 
         table {
-          min-width: 600px;
+          min-width: 520px; /* allow smaller phones but keep columns reasonable */
         }
 
         th,
@@ -610,13 +643,19 @@
           font-size: 0.75rem;
         }
 
-        .btn {
+        /* Make the refresh button full width so it stacks nicely, but keep row buttons auto */
+        .users-header .btn {
           width: 100%;
-          justify-content: center;
         }
 
-        .users-header .btn {
+        .btn {
           width: auto;
+        }
+
+        /* For very narrow screens, align action column left inside the scrolling container */
+        table tbody td:last-child {
+          text-align: left;
+          padding-right: 1rem;
         }
       }
 
@@ -740,7 +779,7 @@
 
           <div id="usersTable"></div>
 
-          <!-- Delete All Section -->
+          <!-- Delete All Section (now centered) -->
           <div id="delete-all-section">
             <button id="deleteAllBtn" class="btn btn-primary">
               Delete All Users
@@ -780,40 +819,43 @@
         return;
       }
 
+      /* Wrap the table in .table-container so it can scroll on mobile
+         and columns won't collapse/hide the actions column */
       usersTable.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Total Solved</th>
-              <th>Ranking</th>
-              <th>Last Updated</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.users.map(user => `
+        <div class="table-container">
+          <table>
+            <thead>
               <tr>
-                <td>
-                  <a href="https://leetcode.com/${encodeURIComponent(user.username)}/"
-                     target="_blank" rel="noopener noreferrer"
-                    class="username-link">
-                    ${user.username}
-                  </a>
-
-                </td>
-                <td>${user.total}</td>
-                <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
-                <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
-                <td>
-                  <button class="btn btn-danger delete-btn" data-username="${user.username}">
-                    Delete
-                  </button>
-                </td>
+                <th>Username</th>
+                <th>Total Solved</th>
+                <th>Ranking</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
               </tr>
-            `).join("")}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${data.users.map(user => `
+                <tr>
+                  <td>
+                    <a href="https://leetcode.com/${encodeURIComponent(user.username)}/"
+                       target="_blank" rel="noopener noreferrer"
+                      class="username-link">
+                      ${user.username}
+                    </a>
+                  </td>
+                  <td>${user.total}</td>
+                  <td>${user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"}</td>
+                  <td>${user.last_updated ? new Date(user.last_updated).toLocaleDateString() : "N/A"}</td>
+                  <td>
+                    <button class="btn btn-danger delete-btn" data-username="${user.username}">
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
       `;
 
       // Attach delete listeners
@@ -897,6 +939,9 @@
     const data = await res.json();
     if (data.success && data.success.length > 0) {
       document.getElementById("usernames").value = "";
+      loadUsers();
+    } else {
+      // still refresh to surface errors / ensure UI updates
       loadUsers();
     }
   });
