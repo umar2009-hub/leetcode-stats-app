@@ -1,10 +1,10 @@
+# app_local.py
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import requests
 import time
-import psycopg2
+import sqlite3
 import os
-import threading
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
@@ -28,7 +28,6 @@ def cache_get(key):
 def cache_set(key, data, ttl=TTL_SECONDS):
     CACHE[key] = (time.time() + ttl, data)
 
-# GraphQL query
 USER_PROFILE_QUERY = """
 query getUserProfile($username: String!) {
   matchedUser(username: $username) {
@@ -47,7 +46,6 @@ query getUserProfile($username: String!) {
 }
 """
 
-# improved fetch with retries and better headers
 def fetch_leetcode(username: str, retries=2, timeout=30):
     headers = {
         "Content-Type": "application/json",
@@ -55,7 +53,6 @@ def fetch_leetcode(username: str, retries=2, timeout=30):
         "User-Agent": "Mozilla/5.0 (compatible; LeetStats/1.0; +https://your-site.example)",
         "Accept": "application/json",
     }
-
     payload = {"query": USER_PROFILE_QUERY, "variables": {"username": username}}
 
     for attempt in range(retries + 1):
@@ -102,65 +99,72 @@ def transform_response(data):
         },
     }
 
-# ---------- DATABASE SETUP (PostgreSQL) ---------- #
+# ---------- LOCAL SQLITE DB ----------
+SQLITE_FILE = os.environ.get("SQLITE_FILE", "leetcode_users.db")
+
 def get_db_connection():
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL not set in environment")
+    conn = sqlite3.connect(SQLITE_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+def exec_commit(conn, query, params=()):
+    cur = conn.cursor()
+    cur.execute(query, params)
+    conn.commit()
+    rc = cur.rowcount
+    cur.close()
+    return rc
 
-    try:
-        return psycopg2.connect(url, sslmode="require")
-    except Exception:
-        return psycopg2.connect(url)
+def exec_fetchall(conn, query, params=()):
+    cur = conn.cursor()
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+def exec_fetchone(conn, query, params=()):
+    cur = conn.cursor()
+    cur.execute(query, params)
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 def init_db():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS leetcode_users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            ranking INTEGER,
-            reputation INTEGER,
-            easy INTEGER DEFAULT 0,
-            medium INTEGER DEFAULT 0,
-            hard INTEGER DEFAULT 0,
-            total INTEGER DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    cursor.close()
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS leetcode_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        ranking INTEGER,
+        reputation INTEGER,
+        easy INTEGER DEFAULT 0,
+        medium INTEGER DEFAULT 0,
+        hard INTEGER DEFAULT 0,
+        total INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+    exec_commit(conn, create_sql, ())
     conn.close()
 
-def ensure_db():
-    try:
-        init_db()
-        app.logger.info("Database initialized successfully.")
-    except Exception as e:
-        app.logger.error("Failed to initialize DB: %s", e)
-ensure_db()
+init_db()
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
-    cursor = conn.cursor()
     solved = stats.get("solved", {})
-    cursor.execute("""
-        INSERT INTO leetcode_users (username, ranking, reputation, easy, medium, hard, total, last_updated)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-        ON CONFLICT (username)
-        DO UPDATE SET 
-            ranking = EXCLUDED.ranking,
-            reputation = EXCLUDED.reputation,
-            easy = EXCLUDED.easy,
-            medium = EXCLUDED.medium,
-            hard = EXCLUDED.hard,
-            total = EXCLUDED.total,
-            last_updated = CURRENT_TIMESTAMP
-    """, (
+    sql = """
+    INSERT INTO leetcode_users (username, ranking, reputation, easy, medium, hard, total, last_updated)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(username) DO UPDATE SET
+      ranking=excluded.ranking,
+      reputation=excluded.reputation,
+      easy=excluded.easy,
+      medium=excluded.medium,
+      hard=excluded.hard,
+      total=excluded.total,
+      last_updated=CURRENT_TIMESTAMP
+    """
+    params = (
         username,
         stats.get("ranking"),
         stats.get("reputation"),
@@ -168,12 +172,11 @@ def store_user_stats(username, stats):
         solved.get("Medium", 0),
         solved.get("Hard", 0),
         solved.get("All", 0),
-    ))
-    conn.commit()
-    cursor.close()
+    )
+    exec_commit(conn, sql, params)
     conn.close()
 
-# ---------- CORE LOGIC ---------- #
+# ---------- CORE LOGIC ----------
 def fetch_or_update_user(username):
     key = f"lc:{username.lower()}"
     cached = cache_get(key)
@@ -185,7 +188,11 @@ def fetch_or_update_user(username):
         payload = transform_response(data)
         if payload.get("ok"):
             cache_set(key, payload)
-            store_user_stats(username, payload)
+            try:
+                store_user_stats(username, payload)
+            except Exception:
+                # don't break if DB store fails
+                pass
         return payload
     except requests.Timeout:
         return {"ok": False, "error": "LeetCode API timed out."}
@@ -196,7 +203,7 @@ def fetch_or_update_user(username):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-# ---------- ADMIN ROUTES ---------- #
+# ---------- ROUTES ----------
 @app.route("/admin/upload", methods=["POST"])
 def admin_upload():
     text = request.form.get("usernames", "").strip()
@@ -206,6 +213,8 @@ def admin_upload():
 
     results = {"success": [], "errors": []}
     for username in usernames[:50]:
+        if not username:
+            continue
         stats = fetch_or_update_user(username)
         if stats.get("ok"):
             results["success"].append(username)
@@ -217,14 +226,10 @@ def admin_upload():
 @app.route("/admin/delete/<username>", methods=["DELETE"])
 def admin_delete(username):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM leetcode_users WHERE username = %s", (username,))
-    deleted = cursor.rowcount > 0
-    conn.commit()
-    cursor.close()
+    rc = exec_commit(conn, "DELETE FROM leetcode_users WHERE username = ?", (username,))
     conn.close()
     CACHE.pop(f"lc:{username.lower()}", None)
-    if deleted:
+    if rc and rc > 0:
         return jsonify({"ok": True, "message": f"User '{username}' deleted successfully."})
     else:
         return jsonify({"ok": False, "error": f"User '{username}' not found."}), 404
@@ -233,56 +238,15 @@ def admin_delete(username):
 def admin_delete_all():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM leetcode_users")
-        deleted_count = cursor.rowcount if cursor.rowcount is not None else 0
-        conn.commit()
-        cursor.close()
+        rc = exec_commit(conn, "DELETE FROM leetcode_users", ())
         conn.close()
         for key in list(CACHE.keys()):
             if key.startswith("lc:"):
                 CACHE.pop(key, None)
-        return jsonify({"ok": True, "message": f"All users deleted successfully. {deleted_count} records removed."})
+        return jsonify({"ok": True, "message": f"All users deleted successfully. {rc} records removed."})
     except Exception as e:
-        app.logger.error("Failed to delete all users: %s", e)
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# ---------- REFRESH LOGIC ---------- #
-_refresh_lock = threading.Lock()
-
-def refresh_all_users_once():
-    """Refresh all users sequentially from DB"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT username FROM leetcode_users ORDER BY total DESC")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    for uname in [r[0] for r in rows]:
-        try:
-            CACHE.pop(f"lc:{uname.lower()}", None)
-            fetch_or_update_user(uname)
-            time.sleep(0.5)
-        except Exception as e:
-            app.logger.warning("Refresh failed for %s: %s", uname, e)
-
-@app.route("/admin/refresh_now", methods=["POST"])
-def admin_refresh_now():
-    """Trigger background refresh of ALL users"""
-    def _run():
-        with _refresh_lock:
-            try:
-                refresh_all_users_once()
-                app.logger.info("Manual refresh completed.")
-            except Exception as e:
-                app.logger.error("Manual refresh failed: %s", e)
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
-    return jsonify({"ok": True, "message": "Refresh started"}), 202
-
-# ---------- API ROUTES ---------- #
 @app.route("/api/users")
 def api_users():
     try:
@@ -291,54 +255,52 @@ def api_users():
         offset = (page - 1) * per_page
         refresh_live = request.args.get("live", "0").lower() in ("1", "true", "yes")
 
+        sort_by = (request.args.get("sort") or "").lower()
+        order = (request.args.get("order") or "").lower()
+        allowed_cols = {"total": "total", "easy": "easy", "medium": "medium", "hard": "hard", "ranking": "ranking", "username": "username"}
+        sort_col = allowed_cols.get(sort_by, "total")
+        sort_dir = "ASC" if order == "asc" else "DESC"
+
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM leetcode_users")
-        total = cursor.fetchone()[0]
+        row = exec_fetchone(conn, "SELECT COUNT(*) as cnt FROM leetcode_users", ())
+        total = int(row["cnt"]) if row else 0
 
         if refresh_live:
-            cursor.execute("""
-                SELECT username FROM leetcode_users
-                WHERE ranking IS NOT NULL
-                ORDER BY total DESC
-                LIMIT %s OFFSET %s
-            """, (per_page, offset))
-            rows = cursor.fetchall()
-            for uname in [r[0] for r in rows[:10]]:
+            rows = exec_fetchall(conn, "SELECT username FROM leetcode_users WHERE ranking IS NOT NULL ORDER BY total DESC LIMIT ? OFFSET ?", (per_page, offset))
+            usernames_to_refresh = [r["username"] for r in rows]
+            MAX_REFRESH = 40
+            delay_seconds = 0.6
+            for uname in usernames_to_refresh[:MAX_REFRESH]:
                 try:
                     CACHE.pop(f"lc:{uname.lower()}", None)
                     fetch_or_update_user(uname)
-                    time.sleep(0.5)
-                except Exception as e:
-                    app.logger.warning("Live refresh failed for %s: %s", uname, e)
-            cursor.close()
+                    time.sleep(delay_seconds)
+                except Exception:
+                    pass
             conn.close()
             conn = get_db_connection()
-            cursor = conn.cursor()
 
-        cursor.execute("""
+        sql = f"""
             SELECT username, ranking, reputation, easy, medium, hard, total, last_updated
             FROM leetcode_users
             WHERE ranking IS NOT NULL
-            ORDER BY total DESC
-            LIMIT %s OFFSET %s
-        """, (per_page, offset))
-
+            ORDER BY {sort_col} {sort_dir}
+            LIMIT ? OFFSET ?
+        """
+        rows = exec_fetchall(conn, sql, (per_page, offset))
         users = []
-        for row in cursor.fetchall():
+        for r in rows:
             users.append({
-                "username": row[0],
-                "ranking": row[1],
-                "reputation": row[2],
-                "easy": row[3],
-                "medium": row[4],
-                "hard": row[5],
-                "total": row[6],
-                "last_updated": row[7].isoformat() if row[7] else None,
+                "username": r["username"],
+                "ranking": r["ranking"],
+                "reputation": r["reputation"],
+                "easy": r["easy"],
+                "medium": r["medium"],
+                "hard": r["hard"],
+                "total": r["total"],
+                "last_updated": r["last_updated"]
             })
-        cursor.close()
         conn.close()
-
         return jsonify({
             "users": users,
             "page": page,
@@ -355,12 +317,10 @@ def api_users():
 def debug_db():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        ok = cursor.fetchone()
-        cursor.close()
+        row = exec_fetchone(conn, "SELECT 1 as v", ())
+        val = row["v"] if row else None
         conn.close()
-        return jsonify({"ok": True, "msg": "Connected to database", "test": ok[0] if ok else None}), 200
+        return jsonify({"ok": True, "msg": "Connected to database", "test": val}), 200
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -377,10 +337,6 @@ def handle_exception(e):
     return jsonify({"ok": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
-    try:
-        init_db()
-        print("✅ Database initialized")
-    except Exception as e:
-        print("⚠️ init_db() failed:", e)
-    print("🚀 Server running at http://127.0.0.1:5000")
+    print(f"Using local SQLite DB: {SQLITE_FILE}")
+    init_db()
     app.run(debug=True)
