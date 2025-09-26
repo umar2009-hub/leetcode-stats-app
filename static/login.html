@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login - LeetCode Stats Viewer</title>
+    <style>
+      /* CSS Reset and Base Styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      /* Design System Variables - Same as main page */
+      :root {
+        /* Colors */
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --surface: hsl(240, 8%, 6%);
+        --surface-elevated: hsl(240, 7%, 8%);
+        --card: hsl(240, 8%, 6%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --card-hover: hsl(240, 7%, 8%);
+        --primary: hsl(258, 90%, 66%);
+        --primary-foreground: hsl(0, 0%, 98%);
+        --primary-muted: hsl(258, 90%, 76%);
+        --secondary: hsl(240, 4.8%, 15.9%);
+        --secondary-hover: hsl(240, 5%, 18%);
+        --accent: hsl(262, 83%, 58%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+        --border: hsl(240, 3.7%, 15.9%);
+        --success: hsl(142, 76%, 36%);
+        --warning: hsl(48, 96%, 53%);
+        --danger: hsl(0, 84%, 60%);
+
+        /* Gradients */
+        --gradient-primary: linear-gradient(
+          135deg,
+          hsl(258, 90%, 66%),
+          hsl(262, 83%, 58%)
+        );
+        --gradient-hero: linear-gradient(
+          135deg,
+          hsl(240, 10%, 3.9%) 0%,
+          hsl(258, 90%, 66%, 0.1) 50%,
+          hsl(262, 83%, 58%, 0.1) 100%
+        );
+
+        /* Shadows */
+        --shadow-lg: 0 10px 15px -3px hsl(240, 10%, 3.9%, 0.1),
+          0 4px 6px -4px hsl(240, 10%, 3.9%, 0.1);
+        --shadow-xl: 0 20px 25px -5px hsl(240, 10%, 3.9%, 0.1),
+          0 8px 10px -6px hsl(240, 10%, 3.9%, 0.1);
+        --shadow-glow: 0 0 20px hsl(258, 90%, 66%, 0.3);
+
+        /* Animation */
+        --transition-fast: 0.15s ease-out;
+        --transition-normal: 0.3s ease-out;
+        --transition-slow: 0.5s ease-out;
+        --bounce-in: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      /* Base Styles */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        line-height: 1.6;
+        overflow-x: hidden;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Hero Background */
+      .hero-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--gradient-hero);
+        z-index: -1;
+      }
+
+      .hero-bg::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at 30% 20%,
+            hsl(258, 90%, 66%, 0.1),
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 70% 80%,
+            hsl(262, 83%, 58%, 0.1),
+            transparent 50%
+          );
+      }
+
+      /* Login Container */
+      .login-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 0 1.5rem;
+        animation: fadeIn 0.8s ease-out;
+      }
+
+      /* Login Card */
+      .login-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: var(--shadow-xl);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .login-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--gradient-primary);
+      }
+
+      /* Header */
+      .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .login-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: hsl(258, 90%, 66%, 0.1);
+        border: 1px solid hsl(258, 90%, 66%, 0.2);
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--primary);
+        margin-bottom: 1rem;
+      }
+
+      .login-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .login-subtitle {
+        color: var(--muted-foreground);
+        font-size: 0.95rem;
+      }
+
+      /* Small desktop hint (visible on desktop, hidden on mobile) */
+      .desktop-hint {
+        display: none;
+        font-size: 0.9rem;
+        color: var(--muted-foreground);
+        margin-top: 0.5rem;
+      }
+
+      /* PIN Display */
+      .pin-display {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        padding: 1rem 0;
+        cursor: text; /* indicate tappable (focuses hidden input) */
+      }
+
+      .pin-dot {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid var(--border);
+        border-radius: 50%;
+        background: transparent;
+        transition: all var(--transition-normal);
+        transform: scale(1);
+      }
+
+      .pin-dot.filled {
+        background: var(--primary);
+        border-color: var(--primary);
+        box-shadow: 0 0 10px hsl(258, 90%, 66%, 0.3);
+        transform: scale(1.1);
+      }
+
+      .pin-dot.error {
+        background: var(--danger);
+        border-color: var(--danger);
+        animation: shake 0.5s ease-in-out;
+      }
+
+      /* Action Buttons */
+      .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .action-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-weight: 500;
+        color: var(--foreground);
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        text-decoration: none;
+      }
+
+      .action-btn:hover {
+        background: var(--secondary-hover);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .action-btn.primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+      }
+
+      .action-btn.primary:hover {
+        background: hsl(258, 90%, 60%);
+        box-shadow: 0 4px 12px hsl(258, 90%, 66%, 0.25);
+      }
+
+      .action-btn svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      /* Error Message */
+      .error-message {
+        text-align: center;
+        color: var(--danger);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-top: 1rem;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: all var(--transition-normal);
+      }
+
+      .error-message.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Success Animation */
+      .success-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: hsl(258, 90%, 66%, 0.1);
+        backdrop-filter: blur(5px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .success-content {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: var(--shadow-xl);
+        animation: scaleIn 0.5s var(--bounce-in);
+      }
+
+      .success-icon {
+        width: 4rem;
+        height: 4rem;
+        background: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .success-icon svg {
+        width: 2rem;
+        height: 2rem;
+        color: var(--primary-foreground);
+      }
+
+      /* Back Button */
+      .back-btn {
+        position: absolute;
+        top: 1.5rem;
+        left: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        color: var(--foreground);
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all var(--transition-normal);
+        z-index: 10;
+      }
+
+      .back-btn:hover {
+        background: var(--card-hover);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .back-btn svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes scaleIn {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 480px) {
+        .login-container {
+          padding: 0 1rem;
+        }
+
+        .login-card {
+          padding: 1.5rem;
+        }
+
+        .back-btn {
+          top: 1rem;
+          left: 1rem;
+          padding: 0.4rem 0.8rem;
+          font-size: 0.8rem;
+        }
+
+        /* desktop hint hidden on mobile */
+        .desktop-hint {
+          display: none;
+        }
+      }
+
+      @media (min-width: 481px) {
+        /* show desktop hint on wider screens */
+        .desktop-hint {
+          display: block;
+        }
+      }
+
+      /* visually-hidden but focusable input style */
+      .pin-input {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        top: calc(50% - 8rem); /* near the pin display vertically */
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        border: none;
+        padding: 0;
+        margin: 0;
+        z-index: 20;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background -->
+    <div class="hero-bg"></div>
+
+    <!-- Back Button -->
+    <a href="index.html" class="back-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15,18 9,12 15,6"></polyline>
+      </svg>
+      Back to Home
+    </a>
+
+    <!-- Login Container -->
+    <div class="login-container">
+      <div class="login-card">
+        <!-- Header -->
+        <div class="login-header">
+          <div class="login-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <circle cx="12" cy="16" r="1"></circle>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            Admin Access
+          </div>
+          <h1 class="login-title">🔐 Enter PIN</h1>
+          <p class="login-subtitle">Enter your 4-digit admin PIN to continue</p>
+
+          <!-- Desktop hint (only visible on desktop/wider screens) -->
+          <p class="desktop-hint">Tip: Use your keyboard (number keys) to enter the PIN.</p>
+        </div>
+
+        <!-- PIN Display (tap to focus the phone keyboard) -->
+        <div class="pin-display" id="pin-display" title="Tap to open numeric keyboard">
+          <div class="pin-dot" id="dot-0"></div>
+          <div class="pin-dot" id="dot-1"></div>
+          <div class="pin-dot" id="dot-2"></div>
+          <div class="pin-dot" id="dot-3"></div>
+        </div>
+
+        <!-- Hidden input for mobile numeric keyboard -->
+        <input
+          id="pin-input"
+          class="pin-input"
+          type="tel"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="4"
+          autocomplete="one-time-code"
+          aria-label="PIN input"
+        />
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button class="action-btn" onclick="clearPin()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1,4 1,10 7,10"></polyline>
+              <path d="M3.51,15a9,9,0,1,0,2.13-9.36L1,10"></path>
+            </svg>
+            Clear
+          </button>
+          <button class="action-btn primary" onclick="submitPin()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+            Submit
+          </button>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-message" id="error-message">
+          Incorrect PIN. Please try again.
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Overlay -->
+    <div class="success-overlay" id="success-overlay">
+      <div class="success-content">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20,6 9,17 4,12"></polyline>
+          </svg>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.5rem;">Access Granted!</h3>
+        <p style="color: var(--muted-foreground);">Redirecting to admin panel...</p>
+      </div>
+    </div>
+
+    <script>
+      let currentPin = '';
+      const correctPin = '6803'; // You can change this to any 4-digit PIN
+
+      const pinInput = document.getElementById('pin-input');
+      const pinDisplay = document.getElementById('pin-display');
+
+      // Update PIN display dots
+      function updatePinDisplay() {
+        for (let i = 0; i < 4; i++) {
+          const dot = document.getElementById(`dot-${i}`);
+          dot.classList.remove('filled', 'error');
+
+          if (i < currentPin.length) {
+            dot.classList.add('filled');
+          }
+        }
+      }
+
+      // Add digit (used by desktop keyboard handler)
+      function addDigit(digit) {
+        if (currentPin.length < 4) {
+          currentPin += digit;
+          syncInputWithState();
+          updatePinDisplay();
+
+          if (currentPin.length === 4) {
+            setTimeout(() => submitPin(), 200);
+          }
+        }
+      }
+
+      // Delete last digit
+      function deleteDigit() {
+        if (currentPin.length > 0) {
+          currentPin = currentPin.slice(0, -1);
+          syncInputWithState();
+          updatePinDisplay();
+          hideError();
+        }
+      }
+
+      // Clear entire PIN
+      function clearPin() {
+        currentPin = '';
+        syncInputWithState();
+        updatePinDisplay();
+        hideError();
+      }
+
+      // Keep the hidden input in sync with currentPin state
+      function syncInputWithState() {
+        if (pinInput) pinInput.value = currentPin;
+      }
+
+      // Sync state from input value (used when typing on mobile)
+      function syncStateFromInput() {
+        let raw = pinInput.value || '';
+        // keep only digits and max 4
+        raw = raw.replace(/\D/g, '').slice(0, 4);
+        if (raw !== currentPin) {
+          currentPin = raw;
+          updatePinDisplay();
+        }
+        // enforce the cleaned value back to input
+        if (pinInput.value !== raw) pinInput.value = raw;
+
+        if (currentPin.length === 4) {
+          setTimeout(() => submitPin(), 200);
+        }
+      }
+
+      // Submit PIN for validation
+      function submitPin() {
+        if (currentPin.length !== 4) {
+          showError('Please enter a 4-digit PIN');
+          // focus input for convenience on mobile
+          pinInput.focus();
+          return;
+        }
+
+        if (currentPin === correctPin) {
+          showSuccess();
+          setTimeout(() => {
+            // Redirect to admin page
+            window.location.href = 'admin.html';
+          }, 1200);
+        } else {
+          showError('Incorrect PIN. Please try again.');
+          shakeDisplay();
+          setTimeout(() => {
+            clearPin();
+          }, 1000);
+        }
+      }
+
+      // Show error message
+      function showError(message) {
+        const errorElement = document.getElementById('error-message');
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+      }
+
+      // Hide error message
+      function hideError() {
+        const errorElement = document.getElementById('error-message');
+        errorElement.classList.remove('show');
+      }
+
+      // Show success overlay
+      function showSuccess() {
+        document.getElementById('success-overlay').style.display = 'flex';
+      }
+
+      // Shake PIN display on error
+      function shakeDisplay() {
+        for (let i = 0; i < 4; i++) {
+          const dot = document.getElementById(`dot-${i}`);
+          dot.classList.remove('filled');
+          dot.classList.add('error');
+        }
+      }
+
+      // Keyboard support for desktop: number keys, backspace, delete, enter
+      document.addEventListener('keydown', (e) => {
+        // Ignore when the focused element is the pin input (mobile typing handled separately)
+        const active = document.activeElement;
+        const isTypingInInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+
+        if (e.key >= '0' && e.key <= '9') {
+          // On desktop numeric keys should add digits to the state
+          if (!isTypingInInput) {
+            e.preventDefault();
+            addDigit(e.key);
+          }
+        } else if (e.key === 'Backspace') {
+          // If pinInput is focused, allow native backspace, but still sync state after a tick
+          if (isTypingInInput) {
+            setTimeout(syncStateFromInput, 0);
+          } else {
+            deleteDigit();
+          }
+        } else if (e.key === 'Delete' || e.key === 'Escape') {
+          clearPin();
+        } else if (e.key === 'Enter') {
+          submitPin();
+        }
+      });
+
+      // When the hidden input changes (mobile keyboard), sync to state
+      pinInput.addEventListener('input', syncStateFromInput);
+
+      // Prevent non-digit paste
+      pinInput.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0,4);
+        pinInput.value = pasted;
+        syncStateFromInput();
+      });
+
+      // Tap on the pin display should focus the hidden input (so mobile keyboard opens)
+      pinDisplay.addEventListener('click', () => {
+        pinInput.focus();
+        // place caret at end if possible
+        const len = pinInput.value.length;
+        try {
+          pinInput.setSelectionRange(len, len);
+        } catch (err) { /* ignore */ }
+      });
+
+      // On load, ensure state and input are synced
+      window.addEventListener('load', () => {
+        syncInputWithState();
+      });
+
+      // Add haptic feedback for touch devices (keep existing behavior)
+      function addHapticFeedback() {
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      }
+
+      // hook action buttons to feedback
+      document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.addEventListener('click', addHapticFeedback);
+      });
+    </script>
+  </body>
+</html>
