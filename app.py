@@ -372,7 +372,7 @@ def index():
 def admin():
     return send_from_directory("static", "admin.html")
 @app.route("/login")
-def admin():
+def login():
     return send_from_directory("static", "login.html")
 
 @app.errorhandler(Exception)
