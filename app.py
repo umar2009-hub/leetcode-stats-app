@@ -326,16 +326,38 @@ def api_users():
 
         users = []
         for row in cursor.fetchall():
+            easy = row[3] or 0
+            medium = row[4] or 0
+            hard = row[5] or 0
+
+            # -------- PLACEMENT SCORE LOGIC --------
+            placement_score = easy * 1 + medium * 2 + hard * 3
+
+            if placement_score < 200:
+                placement_level = "Beginner"
+                level_color = "red"
+            elif placement_score < 600:
+                placement_level = "Intermediate"
+                level_color = "orange"
+            else:
+                placement_level = "Placement Ready"
+                level_color = "green"
+            # ---------------------------------------
+
             users.append({
                 "username": row[0],
                 "ranking": row[1],
                 "reputation": row[2],
-                "easy": row[3],
-                "medium": row[4],
-                "hard": row[5],
+                "easy": easy,
+                "medium": medium,
+                "hard": hard,
                 "total": row[6],
+                "placement_score": placement_score,
+                "placement_level": placement_level,
+                "placement_color": level_color,
                 "last_updated": row[7].isoformat() if row[7] else None,
             })
+
         cursor.close()
         conn.close()
 
@@ -347,9 +369,11 @@ def api_users():
             "total_pages": (total + per_page - 1) // per_page,
             "live_refreshed": refresh_live
         })
+
     except Exception as e:
         app.logger.exception("api_users error")
         return jsonify({"ok": False, "error": str(e)}), 500
+
 
 @app.route("/debug/db")
 def debug_db():

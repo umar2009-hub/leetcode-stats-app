@@ -780,60 +780,89 @@
 
       // Create user card - updated so only username text is clickable
       function createUserCard(user, index) {
-        const profileUrl = `https://leetcode.com/${encodeURIComponent(
-          user.username
-        )}/`;
+  const profileUrl = `https://leetcode.com/${encodeURIComponent(
+    user.username
+  )}/`;
 
-        return `
-        <div class="stats-card stagger-${(index % 4) + 1}">
-          <div class="card-header">
-            <h3 class="card-title">
-              <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="username-link">
-                ${user.username}
-              </a>
+  return `
+  <div class="stats-card stagger-${(index % 4) + 1}">
+    <div class="card-header">
+      <h3 class="card-title">
+        <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="username-link">
+          ${user.username}
+        </a>
+      </h3>
+      <div class="card-indicator"></div>
+    </div>
+    
+    <div class="card-stats">
+      <div class="stat-row">
+        <span class="stat-label">Ranking:</span>
+        <span class="stat-value">${
+          user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"
+        }</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Reputation:</span>
+        <span class="stat-value">${
+          user.reputation ? user.reputation.toLocaleString() : "N/A"
+        }</span>
+      </div>
 
-            </h3>
-            <div class="card-indicator"></div>
-          </div>
-          
-          <div class="card-stats">
-            <div class="stat-row">
-              <span class="stat-label">Ranking:</span>
-              <span class="stat-value">${
-                user.ranking ? `#${user.ranking.toLocaleString()}` : "N/A"
-              }</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Reputation:</span>
-              <span class="stat-value">${
-                user.reputation ? user.reputation.toLocaleString() : "N/A"
-              }</span>
-            </div>
-          </div>
+      <!-- NEW: Placement Score -->
+      <div class="stat-row">
+        <span class="stat-label">Placement Score:</span>
+        <span class="stat-value">${user.placement_score ?? 0}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Status:</span>
+        <span class="stat-value" style="color:${user.placement_color || 'gray'}">
+          ${user.placement_level || "N/A"}
+        </span>
+      </div>
+    </div>
 
-          <div class="badges-grid">
-            <div class="difficulty-badge badge-easy">
-              <span>🟢 Easy</span>
-              <span>${user.easy}</span>
-            </div>
-            <div class="difficulty-badge badge-medium">
-              <span>🟡 Medium</span>
-              <span>${user.medium}</span>
-            </div>
-            <div class="difficulty-badge badge-hard">
-              <span>🔴 Hard</span>
-              <span>${user.hard}</span>
-            </div>
-            <div class="difficulty-badge badge-total">
-              <span>📊 Total</span>
-              <span>${user.total}</span>
-            </div>
-          </div>
+    <div class="badges-grid">
+      <div class="difficulty-badge badge-easy">
+        <span>🟢 Easy</span>
+        <span>${user.easy}</span>
+      </div>
+      <div class="difficulty-badge badge-medium">
+        <span>🟡 Medium</span>
+        <span>${user.medium}</span>
+      </div>
+      <div class="difficulty-badge badge-hard">
+        <span>🔴 Hard</span>
+        <span>${user.hard}</span>
+      </div>
+      <div class="difficulty-badge badge-total">
+        <span>📊 Total</span>
+        <span>${user.total}</span>
+      </div>
+    </div>
 
-          <div class="progress-bar"></div>
-        </div>
-      `;
-      }
+    <!-- NEW: Placement Progress Bar -->
+    <div style="margin-top:12px;">
+      <div style="
+        background:#222;
+        height:6px;
+        border-radius:6px;
+        overflow:hidden;
+      ">
+        <div style="
+          width:${Math.min((user.placement_score || 0) / 10, 100)}%;
+          height:6px;
+          background:${user.placement_color || '#555'};
+          transition:width 0.4s ease;
+        "></div>
+      </div>
+    </div>
+
+    <div class="progress-bar"></div>
+  </div>
+  `;
+}
+
 
       // Load users from API
       async function loadUsers(page = 1) {
