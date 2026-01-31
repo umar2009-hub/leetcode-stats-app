@@ -613,20 +613,41 @@
             Track progress, compare rankings, and analyze problem-solving
             statistics across the LeetCode community.
           </p>
-          <a href="/login" class="admin-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
-            </svg>
-            👨‍💼 Admin Upload
-          </a>
+
+          <!-- Admin / Refresh buttons: added without touching CSS rules -->
+          <div style="display: inline-flex; gap: 0.5rem; align-items: center; margin-top: 1rem;">
+            <a href="/login" class="admin-btn" title="Upload users (admin)">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
+              </svg>
+              👨‍💼 Admin Upload
+            </a>
+
+            <!-- Refresh current (live) page — same behavior as admin's "Refresh List (Current Page)" -->
+            <button class="admin-btn" onclick="refreshCurrentPage()" title="Refresh current visible page">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23,4 23,10 17,10"></polyline>
+                <path d="M20.49,15a9,9,0,1,1-2.12-9.36L23,10"></path>
+              </svg>
+              Refresh Current Page
+            </button>
+
+            <!-- Refresh all users now — triggers backend endpoint /admin/refresh_now (POST) -->
+            <button class="retry-btn" onclick="refreshNow()" title="Refresh all users now">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4m0 12v4m8-8h-4M4 12H0" />
+              </svg>
+              Refresh All Users Now
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -684,7 +705,7 @@
       <!-- Users Grid -->
       <div id="users-grid" class="stats-grid" style="display: none"></div>
 
-      <!-- footer-->
+      <!-- footer pagination -->
       <div id="pagination" class="pagination" style="display: none"></div>
     </div>
     <footer
@@ -712,7 +733,7 @@
             margin-bottom: 20px;
           "
         >
-          Developed by Umar Abdullah
+          Created by Umar Abdullah
         </p>
       </div>
     </footer>
@@ -835,7 +856,7 @@
       `;
       }
 
-      // Load users from API
+      // Load users from API (standard)
       async function loadUsers(page = 1) {
         showLoading();
         currentPage = page;
@@ -856,15 +877,7 @@
             return;
           }
 
-          // Render users
-          const usersGrid = document.getElementById("users-grid");
-          usersGrid.innerHTML = data.users
-            .map((user, index) => createUserCard(user, index))
-            .join("");
-
-          totalPages = data.total_pages;
-          renderPagination(data.total_pages, page);
-          showUsers();
+          renderUsersFromData(data, page);
         } catch (err) {
           console.error("Error loading users:", err);
           showError(
@@ -873,11 +886,24 @@
         }
       }
 
+      // Render users given data object (shared by loadUsers and refreshCurrentPage)
+      function renderUsersFromData(data, page) {
+        // Render users
+        const usersGrid = document.getElementById("users-grid");
+        usersGrid.innerHTML = data.users
+          .map((user, index) => createUserCard(user, index))
+          .join("");
+
+        totalPages = data.total_pages || 1;
+        renderPagination(totalPages, page);
+        showUsers();
+      }
+
       // Render pagination
-      function renderPagination(totalPages, current) {
+      function renderPagination(totalPagesLocal, current) {
         const pagination = document.getElementById("pagination");
 
-        if (totalPages <= 1) {
+        if (totalPagesLocal <= 1) {
           pagination.style.display = "none";
           return;
         }
@@ -890,7 +916,7 @@
 
           for (
             let i = Math.max(2, current - delta);
-            i <= Math.min(totalPages - 1, current + delta);
+            i <= Math.min(totalPagesLocal - 1, current + delta);
             i++
           ) {
             range.push(i);
@@ -904,10 +930,10 @@
 
           rangeWithDots.push(...range);
 
-          if (current + delta < totalPages - 1) {
-            rangeWithDots.push("...", totalPages);
-          } else if (totalPages > 1) {
-            rangeWithDots.push(totalPages);
+          if (current + delta < totalPagesLocal - 1) {
+            rangeWithDots.push("...", totalPagesLocal);
+          } else if (totalPagesLocal > 1) {
+            rangeWithDots.push(totalPagesLocal);
           }
 
           return rangeWithDots;
@@ -940,7 +966,7 @@
 
         html += `
         <button class="page-btn" onclick="loadUsers(${current + 1})" ${
-          current === totalPages ? "disabled" : ""
+          current === totalPagesLocal ? "disabled" : ""
         }>
           Next
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -961,6 +987,70 @@
         }
       }
 
+      // --- New: Refresh Current Page (live) ---
+      // Calls API with live=1 for the current page and re-renders results.
+      async function refreshCurrentPage() {
+        // show a minimal loading UI
+        showLoading();
+
+        try {
+          const res = await fetch(
+            `/api/users?page=${currentPage}&per_page=${perPage}&live=1`
+          );
+
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+
+          const data = await res.json();
+
+          if (!data || !Array.isArray(data.users)) {
+            throw new Error("Unexpected response from server");
+          }
+
+          renderUsersFromData(data, currentPage);
+        } catch (err) {
+          console.error("Error refreshing current page:", err);
+          showError("Failed to refresh current page. " + err.message);
+        }
+      }
+
+      // --- New: Refresh All Users Now ---
+      // Triggers backend POST /admin/refresh_now and gives user feedback.
+      async function refreshNow() {
+        if (!confirm("Refresh ALL users now? This may take some time.")) return;
+
+        // temporarily show loading state in grid
+        const usersGrid = document.getElementById("users-grid");
+        usersGrid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 2rem;">
+          <div class="loading-spinner" style="display:inline-flex;">
+            <div class="spinner"></div>
+            <span style="margin-left: 0.5rem;">Starting full refresh...</span>
+          </div>
+        </div>`;
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "none";
+        document.getElementById("users-grid").style.display = "grid";
+        document.getElementById("pagination").style.display = "none";
+
+        try {
+          const res = await fetch("/admin/refresh_now", { method: "POST" });
+          const data = await res.json();
+          if (data.ok) {
+            alert("✅ Refresh started. Data will update shortly.");
+            // try to reload users after a short delay to show updated state
+            setTimeout(() => loadUsers(currentPage), 5000);
+          } else {
+            alert("❌ Failed to start refresh: " + (data.error || "Unknown error"));
+            // restore by loading current page normally
+            loadUsers(currentPage);
+          }
+        } catch (err) {
+          alert("⚠️ Error starting refresh: " + err.message);
+          loadUsers(currentPage);
+        }
+      }
+
       // Initialize app
       document.addEventListener("DOMContentLoaded", () => {
         loadUsers(1);
@@ -968,6 +1058,3 @@
     </script>
   </body>
 </html>
-
-
-
