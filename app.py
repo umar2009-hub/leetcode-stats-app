@@ -104,36 +104,70 @@ def transform_response(data):
         },
     }
 
-# ---------- DATABASE SETUP (PostgreSQL) ---------- #
-def get_db_connection():
+# ---------- DATABASE SETUP ---------- #
+def get_db_info():
     url = os.environ.get("DATABASE_URL")
     if not url:
-        raise RuntimeError("DATABASE_URL not set in environment")
+        return "sqlite", "leetcode_users.db"
+    return "postgres", url
 
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+def get_db_connection():
+    db_type, url = get_db_info()
+    if db_type == "sqlite":
+        import sqlite3
+        conn = sqlite3.connect(url, check_same_thread=False)
+        return conn
+    else:
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        try:
+            return psycopg2.connect(url, sslmode="require")
+        except Exception:
+            return psycopg2.connect(url)
 
-    try:
-        return psycopg2.connect(url, sslmode="require")
-    except Exception:
-        return psycopg2.connect(url)
+def get_placeholder():
+    db_type, _ = get_db_info()
+    return "?" if db_type == "sqlite" else "%s"
 
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS leetcode_users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            ranking INTEGER,
-            reputation INTEGER,
-            easy INTEGER DEFAULT 0,
-            medium INTEGER DEFAULT 0,
-            hard INTEGER DEFAULT 0,
-            total INTEGER DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    db_type, _ = get_db_info()
+    
+    if db_type == "sqlite":
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS leetcode_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                ranking INTEGER,
+                reputation INTEGER,
+                easy INTEGER DEFAULT 0,
+                medium INTEGER DEFAULT 0,
+                hard INTEGER DEFAULT 0,
+                total INTEGER DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_total INTEGER DEFAULT 0,
+                last_active_date DATE,
+                current_streak INTEGER DEFAULT 0
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS leetcode_users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                ranking INTEGER,
+                reputation INTEGER,
+                easy INTEGER DEFAULT 0,
+                medium INTEGER DEFAULT 0,
+                hard INTEGER DEFAULT 0,
+                total INTEGER DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_total INTEGER DEFAULT 0,
+                last_active_date DATE,
+                current_streak INTEGER DEFAULT 0
+            )
+        """)
     conn.commit()
     cursor.close()
     conn.close()
@@ -144,18 +178,22 @@ def ensure_db():
         app.logger.info("Database initialized successfully.")
     except Exception as e:
         app.logger.error("Failed to initialize DB: %s", e)
-ensure_db()
+
+# Only ensure DB if we are running as main or in a production env
+if __name__ == "__main__" or os.environ.get("FLASK_ENV") == "production":
+    ensure_db()
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
     cursor = conn.cursor()
+    p = get_placeholder()
     solved = stats.get("solved", {})
     new_total = solved.get("All", 0)
 
     # Get previous data
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT last_total, last_active_date, current_streak
-        FROM leetcode_users WHERE username = %s
+        FROM leetcode_users WHERE username = {p}
     """, (username,))
     row = cursor.fetchone()
 
@@ -163,12 +201,22 @@ def store_user_stats(username, stats):
     last_active_date = row[1] if row else None
     current_streak = row[2] if row else 0
 
+    # SQLite returns date strings, PostgreSQL returns date objects
+    if isinstance(last_active_date, str):
+        from datetime import datetime
+        try:
+            last_active_date = datetime.strptime(last_active_date, "%Y-%m-%d").date()
+        except:
+            pass
+
     today = date.today()
 
     # ---- STREAK LOGIC ----
     if new_total > (last_total or 0):
         if last_active_date == today - timedelta(days=1):
             current_streak += 1
+        elif last_active_date == today:
+            pass # already updated today
         else:
             current_streak = 1
         last_active_date = today
@@ -177,37 +225,73 @@ def store_user_stats(username, stats):
             current_streak = 0
     # ----------------------
 
-    cursor.execute("""
-        INSERT INTO leetcode_users
-        (username, ranking, reputation, easy, medium, hard, total,
-         last_updated, last_total, last_active_date, current_streak)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,CURRENT_TIMESTAMP,%s,%s,%s)
-        ON CONFLICT (username)
-        DO UPDATE SET
-            ranking = EXCLUDED.ranking,
-            reputation = EXCLUDED.reputation,
-            easy = EXCLUDED.easy,
-            medium = EXCLUDED.medium,
-            hard = EXCLUDED.hard,
-            total = EXCLUDED.total,
-            last_updated = CURRENT_TIMESTAMP,
-            last_total = EXCLUDED.total,
-            last_active_date = %s,
-            current_streak = %s
-    """, (
-        username,
-        stats.get("ranking"),
-        stats.get("reputation"),
-        solved.get("Easy", 0),
-        solved.get("Medium", 0),
-        solved.get("Hard", 0),
-        new_total,
-        new_total,
-        last_active_date,
-        current_streak,
-        last_active_date,
-        current_streak
-    ))
+    db_type, _ = get_db_info()
+    if db_type == "sqlite":
+        # SQLite UPSERT
+        cursor.execute(f"""
+            INSERT INTO leetcode_users
+            (username, ranking, reputation, easy, medium, hard, total,
+             last_updated, last_total, last_active_date, current_streak)
+            VALUES ({p},{p},{p},{p},{p},{p},{p},CURRENT_TIMESTAMP,{p},{p},{p})
+            ON CONFLICT (username)
+            DO UPDATE SET
+                ranking = EXCLUDED.ranking,
+                reputation = EXCLUDED.reputation,
+                easy = EXCLUDED.easy,
+                medium = EXCLUDED.medium,
+                hard = EXCLUDED.hard,
+                total = EXCLUDED.total,
+                last_updated = CURRENT_TIMESTAMP,
+                last_total = EXCLUDED.total,
+                last_active_date = {p},
+                current_streak = {p}
+        """, (
+            username,
+            stats.get("ranking"),
+            stats.get("reputation"),
+            solved.get("Easy", 0),
+            solved.get("Medium", 0),
+            solved.get("Hard", 0),
+            new_total,
+            new_total,
+            last_active_date,
+            current_streak,
+            last_active_date,
+            current_streak
+        ))
+    else:
+        # Postgres UPSERT
+        cursor.execute(f"""
+            INSERT INTO leetcode_users
+            (username, ranking, reputation, easy, medium, hard, total,
+             last_updated, last_total, last_active_date, current_streak)
+            VALUES ({p},{p},{p},{p},{p},{p},{p},CURRENT_TIMESTAMP,{p},{p},{p})
+            ON CONFLICT (username)
+            DO UPDATE SET
+                ranking = EXCLUDED.ranking,
+                reputation = EXCLUDED.reputation,
+                easy = EXCLUDED.easy,
+                medium = EXCLUDED.medium,
+                hard = EXCLUDED.hard,
+                total = EXCLUDED.total,
+                last_updated = CURRENT_TIMESTAMP,
+                last_total = EXCLUDED.total,
+                last_active_date = {p},
+                current_streak = {p}
+        """, (
+            username,
+            stats.get("ranking"),
+            stats.get("reputation"),
+            solved.get("Easy", 0),
+            solved.get("Medium", 0),
+            solved.get("Hard", 0),
+            new_total,
+            new_total,
+            last_active_date,
+            current_streak,
+            last_active_date,
+            current_streak
+        ))
 
     conn.commit()
     cursor.close()
@@ -259,7 +343,8 @@ def admin_upload():
 def admin_delete(username):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM leetcode_users WHERE username = %s", (username,))
+    p = get_placeholder()
+    cursor.execute(f"DELETE FROM leetcode_users WHERE username = {p}", (username,))
     deleted = cursor.rowcount > 0
     conn.commit()
     cursor.close()
@@ -334,17 +419,19 @@ def api_users():
 
         conn = get_db_connection()
         cursor = conn.cursor()
+        p = get_placeholder()
         cursor.execute("SELECT COUNT(*) FROM leetcode_users")
-        total = cursor.fetchone()[0]
+        total_row = cursor.fetchone()
+        total = total_row[0] if total_row else 0
 
         if refresh_live:
-            cursor.execute("""
+            cursor.execute(f"""
     SELECT username, ranking, reputation, easy, medium, hard, total,
            last_updated, current_streak, last_active_date
     FROM leetcode_users
     WHERE ranking IS NOT NULL
     ORDER BY total DESC
-    LIMIT %s OFFSET %s
+    LIMIT {p} OFFSET {p}
 """, (per_page, offset))
 
             rows = cursor.fetchall()
@@ -360,13 +447,13 @@ def api_users():
             conn = get_db_connection()
             cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(f"""
     SELECT username, ranking, reputation, easy, medium, hard, total,
            last_updated, current_streak, last_active_date
     FROM leetcode_users
     WHERE ranking IS NOT NULL
     ORDER BY total DESC
-    LIMIT %s OFFSET %s
+    LIMIT {p} OFFSET {p}
 """, (per_page, offset))
 
 
@@ -401,6 +488,28 @@ def api_users():
             weakness = min(scores_map, key=scores_map.get)
             # -------------------------------------------
 
+            # Handle timestamps and dates from SQLite/Postgres
+            last_updated = row[7]
+            if isinstance(last_updated, str):
+                try:
+                    from datetime import datetime
+                    # SQLite default TIMESTAMP is CURRENT_TIMESTAMP which is 'YYYY-MM-DD HH:MM:SS'
+                    # But it could also be 'YYYY-MM-DDTHH:MM:SS' if ISO format was used
+                    if 'T' in last_updated:
+                        last_updated = datetime.fromisoformat(last_updated)
+                    else:
+                        last_updated = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
+                except:
+                    pass
+            
+            last_active = row[9]
+            if isinstance(last_active, str):
+                try:
+                    from datetime import datetime
+                    last_active = datetime.strptime(last_active, "%Y-%m-%d").date()
+                except:
+                    pass
+
             users.append({
     "username": row[0],
     "ranking": row[1],
@@ -420,12 +529,13 @@ def api_users():
     "weakness": weakness,
 
     # timestamps
-    "last_updated": row[7].isoformat() if row[7] else None,
+    "last_updated": last_updated.isoformat() if hasattr(last_updated, "isoformat") else str(last_updated),
 
     # ✅ NEW — streak fields (CORRECT INDEX)
     "streak": row[8] or 0,
-    "last_active": row[9].isoformat() if row[9] else None,
+    "last_active": last_active.isoformat() if hasattr(last_active, "isoformat") else str(last_active),
 })
+
 
 
 
