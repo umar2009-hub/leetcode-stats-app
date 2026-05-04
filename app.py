@@ -53,9 +53,10 @@ query getUserProfile($username: String!) {
 def fetch_leetcode(username: str, retries=2, timeout=30):
     headers = {
         "Content-Type": "application/json",
-        "Referer": "https://leetcode.com",
-        "User-Agent": "Mozilla/5.0 (compatible; LeetStats/1.0; +https://your-site.example)",
-        "Accept": "application/json",
+        "Referer": "https://leetcode.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Origin": "https://leetcode.com",
     }
 
     payload = {"query": USER_PROFILE_QUERY, "variables": {"username": username}}
@@ -63,6 +64,8 @@ def fetch_leetcode(username: str, retries=2, timeout=30):
     for attempt in range(retries + 1):
         try:
             r = requests.post(LEETCODE_GRAPHQL, json=payload, headers=headers, timeout=timeout)
+            if r.status_code == 403:
+                app.logger.error(f"Access forbidden (403) for user {username}. Render IP might be blocked.")
             r.raise_for_status()
             return r.json()
         except requests.exceptions.HTTPError as http_err:

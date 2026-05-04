@@ -875,13 +875,53 @@
   document.getElementById("deleteAllBtn").addEventListener("click", deleteAllUsers);
   document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const usernames = document.getElementById("usernames").value.trim();
-    if (!usernames) { alert("Enter at least one username."); return; }
-    const formData = new FormData(); formData.append("usernames", usernames);
-    const res = await fetch("/admin/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    if (data.success && data.success.length > 0) { document.getElementById("usernames").value = ""; loadUsers(); }
-    else { loadUsers(); }
+    const usernamesStr = document.getElementById("usernames").value.trim();
+    if (!usernamesStr) {
+      alert("Enter at least one username.");
+      return;
+    }
+
+    const uploadLoading = document.getElementById("uploadLoading");
+    const uploadResults = document.getElementById("uploadResults");
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    uploadLoading.style.display = "flex";
+    uploadResults.style.display = "none";
+    submitBtn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("usernames", usernamesStr);
+      
+      const res = await fetch("/admin/upload", { method: "POST", body: formData });
+      const data = await res.json();
+
+      uploadResults.style.display = "block";
+      if (data.errors && data.errors.length > 0) {
+        uploadResults.className = "message error";
+        uploadResults.innerHTML = `
+          <h4>Upload completed with some errors:</h4>
+          <ul>${data.errors.map(err => `<li>${err}</li>`).join("")}</ul>
+          ${data.success.length > 0 ? `<p style="margin-top:0.5rem; color:var(--success)">✅ Successfully added: ${data.success.join(", ")}</p>` : ""}
+        `;
+      } else if (data.success && data.success.length > 0) {
+        uploadResults.className = "message success";
+        uploadResults.innerHTML = `<h4>✅ Successfully added ${data.success.length} users!</h4>`;
+        document.getElementById("usernames").value = "";
+      } else if (data.error) {
+         uploadResults.className = "message error";
+         uploadResults.innerHTML = `<h4>❌ Error: ${data.error}</h4>`;
+      }
+
+      loadUsers();
+    } catch (err) {
+      uploadResults.style.display = "block";
+      uploadResults.className = "message error";
+      uploadResults.innerHTML = `<h4>⚠️ Request failed</h4><p>${err.message}</p>`;
+    } finally {
+      uploadLoading.style.display = "none";
+      submitBtn.disabled = false;
+    }
   });
 
   loadUsers();
