@@ -175,16 +175,22 @@ def init_db():
     cursor.close()
     conn.close()
 
-def ensure_db():
+# Initialize DB on startup
+with app.app_context():
     try:
         init_db()
-        app.logger.info("Database initialized successfully.")
+        app.logger.info("✅ Database initialized successfully.")
     except Exception as e:
-        app.logger.error("Failed to initialize DB: %s", e)
+        app.logger.error("⚠️ Database initialization failed: %s", e)
 
-# Only ensure DB if we are running as main or in a production env
-if __name__ == "__main__" or os.environ.get("FLASK_ENV") == "production":
-    ensure_db()
+@app.route("/admin/init_db")
+def admin_init_db():
+    """Manual route to trigger database initialization if it fails on startup"""
+    try:
+        init_db()
+        return jsonify({"ok": True, "message": "Database initialized successfully."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 def store_user_stats(username, stats):
     conn = get_db_connection()
